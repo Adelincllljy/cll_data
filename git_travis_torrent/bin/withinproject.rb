@@ -653,70 +653,70 @@ module WithinProjects
                 threads
         
     end
-    def self.update_errormodifiled(repo_name)
+    # def self.update_errormodifiled(repo_name)
     
-        Thread.abort_on_exception = true
-        threads=init_update_errormodifiled 
+    #     Thread.abort_on_exception = true
+    #     threads=init_update_errormodifiled 
         
-        Withinproject.where("gh_project_name=? and prev_tr_status = 0",repo_name).find_each do |info|
-                 info.git_commit
-                 Withinproject.where("gh_project_name=? and git_commit=?",repo_name,info.pre_builtcommit).find_each do |prev_info|
+    #     Withinproject.where("gh_project_name=? and prev_tr_status = 0",repo_name).find_each do |info|
+    #              info.git_commit
+    #              Withinproject.where("gh_project_name=? and git_commit=?",repo_name,info.pre_builtcommit).find_each do |prev_info|
             
-                    prev_info.error_file
+    #                 prev_info.error_file
             
-                    Within_filepath.where("tr_build_id=? and prev_builtcommit=?", info.tr_build_id,info.pre_builtcommit).find_each do |con|
+    #                 Within_filepath.where("tr_build_id=? and prev_builtcommit=?", info.tr_build_id,info.pre_builtcommit).find_each do |con|
                
             
             
                 
-                     @inqueue.enq [info,prev_info.error_file,con.filpath]
-                    end
-                end
+    #                  @inqueue.enq [info,prev_info.error_file,con.filpath]
+    #                 end
+    #             end
             
             
-        end
+    #     end
         
-        30.times do
-            @inqueue.enq :END_OF_WORK
-        end
+    #     30.times do
+    #         @inqueue.enq :END_OF_WORK
+    #     end
            
-        threads.each {|t| t.join}
-        puts "ErrorMOdifyUpdate Over"  
+    #     threads.each {|t| t.join}
+    #     puts "ErrorMOdifyUpdate Over"  
         
-    end
+    # end
 
 
 
-    def self.update_prepass(repo_name)
+    # def self.update_prepass(repo_name)
     
-        Thread.abort_on_exception = true
-        threads=init_update_errormodifiled 
+    #     Thread.abort_on_exception = true
+    #     threads=init_update_errormodifiled 
         
-        Withinproject.where("gh_project_name=? and job_status in('errored','failed')",repo_name).find_each do |info|
-                 info.git_commit
+    #     Withinproject.where("gh_project_name=? and job_status in('errored','failed')",repo_name).find_each do |info|
+    #              info.git_commit
         
         
         
             
-            Within_filepath.where("prev_builtcommit=?", info.git_commit).find_each do |con|
+    #         Within_filepath.where("prev_builtcommit=?", info.git_commit).find_each do |con|
                
             
             
                 
-                @inqueue.enq [info,con.filpath]
-            end
+    #             @inqueue.enq [info,con.filpath]
+    #         end
             
             
-        end
+    #     end
         
-        30.times do
-            @inqueue.enq :END_OF_WORK
-        end
+    #     30.times do
+    #         @inqueue.enq :END_OF_WORK
+    #     end
            
-        threads.each {|t| t.join}
-        puts "Update Over"  
+    #     threads.each {|t| t.join}
+    #     puts "Update Over"  
         
-    end
+    # end
 
 
     def self.init_getable
@@ -808,264 +808,265 @@ module WithinProjects
         return
     end
 
-    def self.init_getallpj
-        @queue = SizedQueue.new(@thread_num)
-        threads=[]
-                @thread_num.times do 
-                thread = Thread.new do
-                    loop do
-                    info = @queue.deq
-                    break if info == :END_OF_WORK
-                    builds=[]
-                    Travistorrent.select("id,row_num,git_commit, tr_build_id, gh_project_name, gh_is_pr, git_merged_with, gh_lang, git_branch, gh_first_commit_created_at, gh_team_size, git_commits, git_num_commits,tr_prev_build, gh_num_issue_comments, gh_num_commit_comments, gh_num_pr_comments, gh_src_churn, gh_test_churn, gh_files_added, gh_files_deleted, gh_files_modified, gh_tests_added, gh_tests_deleted, gh_src_files, gh_doc_files, gh_other_files, gh_commits_on_files_touched, gh_sloc, gh_test_lines_per_kloc, gh_test_cases_per_kloc, gh_asserts_cases_per_kloc, gh_by_core_team_member, gh_description_complexity, gh_pull_req_num, tr_status,tr_duration, tr_started_at, tr_jobs, tr_build_number, tr_job_id, tr_lan, tr_setup_time, tr_analyzer, tr_tests_ok, tr_tests_fail, tr_tests_run, tr_tests_skipped, tr_failed_tests, tr_testduration, tr_purebuildduration, tr_tests_ran, 
-                        tr_tests_failed, git_num_committers, tr_num_jobs, bl_log, bl_cluster, cmt_importchangecount, cmt_classchangecount, cmt_methodchangecount, cmt_fieldchangecount, 
-                        cmt_methodbodychangecount, cmt_buildfilechangecount").where("gh_project_name=? and tr_analyzer='java-maven' and gh_lang='java'",info).find_each do |item|
-                        hash=item.attributes.deep_symbolize_keys
-                        hash.delete(:id)
-                        test=Withinproject.new(hash)
-                        test.save 
-                        puts '======='
-                        ActiveRecord::Base.clear_active_connections!
-                    end
-                    # puts "========="
-                    # Withinproject.import builds,validate: false
+    # def self.init_getallpj
+    #     @queue = SizedQueue.new(@thread_num)
+    #     puts "@queue"
+    #     threads=[]
+    #             @thread_num.times do 
+    #             thread = Thread.new do
+    #                 loop do
+    #                 info = @queue.deq
+    #                 break if info == :END_OF_WORK
+    #                 builds=[]
+    #                 Travistorrent.select("id,row_num,git_commit, tr_build_id, gh_project_name, gh_is_pr, git_merged_with, gh_lang, git_branch, gh_first_commit_created_at, gh_team_size, git_commits, git_num_commits,tr_prev_build, gh_num_issue_comments, gh_num_commit_comments, gh_num_pr_comments, gh_src_churn, gh_test_churn, gh_files_added, gh_files_deleted, gh_files_modified, gh_tests_added, gh_tests_deleted, gh_src_files, gh_doc_files, gh_other_files, gh_commits_on_files_touched, gh_sloc, gh_test_lines_per_kloc, gh_test_cases_per_kloc,
+    #                      gh_asserts_cases_per_kloc, gh_by_core_team_member, gh_description_complexity, gh_pull_req_num, tr_status,tr_duration, tr_started_at, tr_jobs, tr_build_number, tr_job_id, tr_lan, tr_setup_time, tr_analyzer, tr_tests_ok, tr_tests_fail, tr_tests_run, tr_tests_skipped, tr_failed_tests, tr_testduration, tr_purebuildduration, tr_tests_ran, 
+    #                     tr_tests_failed, git_num_committers, tr_num_jobs, bl_log, bl_cluster, cmt_importchangecount, cmt_classchangecount, cmt_methodchangecount, cmt_fieldchangecount, 
+    #                     cmt_methodbodychangecount, cmt_buildfilechangecount").where("gh_project_name=? and tr_analyzer='java-maven' and gh_lang='java'",info).find_each do |item|
+    #                     hash=item.attributes.deep_symbolize_keys
+    #                     hash.delete(:id)
+    #                     test=Withinproject.new(hash)
+    #                     test.save 
+    #                     puts '======='
+    #                     ActiveRecord::Base.clear_active_connections!
+    #                 end
+    #                 # puts "========="
+    #                 # Withinproject.import builds,validate: false
                     
-                    end
-                end
-                    threads << thread
-                end
+    #                 end
+    #             end
+    #                 threads << thread
+    #             end
         
-                threads
+    #             threads
         
-    end
+    # end
 
 
-    def self.get_allpj(repo_name)
-        Thread.abort_on_exception = true       
-        threads = init_getallpj        
-        # Travistorrent.find_by_sql("SELECT gh_project_name FROM travistorrents where  tr_analyzer='java-maven' and gh_lang='java' and gh_project_name<>'structr/structr'  group by gh_project_name having count(*)>=1000").find_all do |info|
+    # def self.get_allpj(repo_name)
+    #     Thread.abort_on_exception = true       
+    #     threads = init_getallpj        
+    #     # Travistorrent.find_by_sql("SELECT gh_project_name FROM travistorrents where  tr_analyzer='java-maven' and gh_lang='java' and gh_project_name<>'structr/structr'  group by gh_project_name having count(*)>=1000").find_all do |info|
+    #     #puts info
+    #     #diff_arry<<info.duration
+    #     #build= info.attributes.deep_symbolize_keys
+        
+        
+    #     @queue.enq repo_name
+        
+        
+    #     @thread_num.times do   
+    #         @queue.enq :END_OF_WORK
+    #     end
+    #     threads.each {|t| t.join}
+    #     puts "Update Over"
+    # end
+#===========================================================
+    # def self.update_fail_build_rate(repo_name)
+    #     #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
+    #     puts "in here"
+    #     Thread.abort_on_exception = true
+    #     threads = init_update_fail_build_rate
+    #     Withinproject.where("id>? and gh_project_name=?",0,repo_name).find_each do |info|
+        
+    #     # reponame="#{user}/#{repo}"
+    #     @queue.enq [info,repo_name]
+    #     end
+    #     @thread_num.times do   
+    #     @queue.enq :END_OF_WORK
+    #     end
+    #     threads.each {|t| t.join}
+    #     puts "Update Over"
+    #     ActiveRecord::Base.clear_active_connections!
+    #     return
+    #       # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
+    #       # info.fail_build_rate=format("%.3f",Float(m)/c)
+    #       # info.save
+    
+    #   end 
+    
+    # def self. init_update_fail_build_rate
+    # @queue=SizedQueue.new(@thread_num)
+    # threads=[]
+    # @thread_num.times do 
+    #     thread = Thread.new do
+    #     loop do
+    #         arry = @queue.deq
+    #         break if arry == :END_OF_WORK
+    #         m=Travistorrent.where("tr_build_id< ? and gh_project_name=? ",arry[0].tr_build_id,arry[1]).find_each.size
+    #         c=Travistorrent.where("tr_build_id< ? and gh_project_name=? and tr_status not in ('passed','canceled')",arry[0].tr_build_id,arry[1]).find_each.size
+    #         if m!=0
+    #         arry[0].fail_build_rate=format("%.3f",Float(c)/m)
+    #         arry[0].save
+            
+    #         end
+    #         #ActiveRecord::Base.clear_active_connections!
+    #         end
+    #     end
+    #     threads << thread
+    #     end
+
+    # threads
+    # end
+#=================================================
+    # def self.update_prev_startime(repo_name)
+    #     #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
+        
+    #     Thread.abort_on_exception = true
+    #     threads = init_update_now_startime
+    #     #repo_name=user+"@"+repo
+    #     Withinproject.where("gh_project_name=? and prev_time is null",repo_name).find_each do |info|
+        
+    #         @queue.enq info
+    #     end
+    
+    #     @thread_num.times do   
+    #         @queue.enq :END_OF_WORK
+    #     end
+    #     threads.each {|t| t.join}
+    #     puts "now_startimeUpdate Over"
+    #     ActiveRecord::Base.clear_active_connections!
+    #     return
+    #     # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
+    #     # info.fail_build_rate=format("%.3f",Float(m)/c)
+    #     # info.save
+    
+    # end 
+  
+    # def self.init_update_now_startime
+    #     @queue=SizedQueue.new(@thread_num)
+    #     threads=[]
+    #     mutex=Mutex.new
+    #     #@thread_num.times do 
+    #     thread = Thread.new do
+    #         loop do
+    #         info = @queue.deq
+    #         break if info == :END_OF_WORK
+            
+                
+            
+    #         #if Travistorrent.where("git_commit=?",info.pre_builtcommit).find_each.size>0
+    #             #mutex.lock
+    #             Travistorrent.where("git_commit=?",info.pre_builtcommit).find_each do |item|
+    #             info.prev_time=item.gh_first_commit_created_at
+    #             info.save
+                
+    #             end
+    #             #mutex.unlock
+    #         #end
+    #         #ActiveRecord::Base.clear_active_connections!
+    #         #end
+    #         end
+    #         threads << thread
+    #     end
+    
+    #     threads
+    # end  
+  
+  #====================================================
+    # def self.update_fixprevstartime(repo_name)
+    #     #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
+        
+    #     Thread.abort_on_exception = true
+    #     threads = init_fixprevstartime
+    #     #repo_name=user+"@"+repo
+    #     Withinproject.where("gh_project_name=? and prev_time is null",repo_name).find_each do |info|
+    #     @queue2.enq info
+    #     end
+    
+    #     @thread_num.times do   
+    #         @queue2.enq :END_OF_WORK
+    #     end
+    #     threads.each {|t| t.join}
+    #     puts "now_startimeUpdate Over"
+    #     ActiveRecord::Base.clear_active_connections!
+    #     return
+    #     # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
+    #     # info.fail_build_rate=format("%.3f",Float(m)/c)
+    #     # info.save
+    
+    # end 
+    
+    # def self.init_fixprevstartime
+    #     @queue2=SizedQueue.new(@thread_num)
+    #     threads=[]
+        
+    #     @thread_num.times do 
+    #     thread = Thread.new do
+    #         loop do
+    #         info = @queue2.deq
+    #         break if info == :END_OF_WORK
+            
+                
+            
+    #         #if Travistorrent.where("git_commit=?",info.pre_builtcommit).find_each.size>0
+    #             #mutex.lock
+    #             All_repo_data_virtual.where("commit=? and repo_name=?",info.pre_builtcommit,info.gh_project_name.gsub('/','@')).find_each do |item|
+    #             info.prev_time=item.started_at
+    #             info.save
+                
+    #             end
+    #             #mutex.unlock
+    #         #end
+    #         #ActiveRecord::Base.clear_active_connections!
+    #         end
+    #         end
+    #         threads << thread
+    #     end
+    
+    #     threads
+    # end  
+    
+  
+
+
+
+  #====================================================
+    def self.update_timediff(repo_name)
+        #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
+        
+        Thread.abort_on_exception = true
+        threads = init_update_timediff
+        #repo_name=user+"@"+repo
+        puts "update_timediff"
+        diff_arry=[]
+        Withinproject.find_by_sql("SELECT id,TIMESTAMPDIFF(HOUR,withinprojects.prev_time,withinprojects.gh_first_commit_created_at) as duration FROM withinprojects where diff_time is null and gh_project_name='#{repo_name}'").find_all do |info|
         #puts info
         #diff_arry<<info.duration
-        #build= info.attributes.deep_symbolize_keys
-        
-        
-        @queue.enq repo_name
+            @inqueue.enq info
         end
         
         @thread_num.times do   
-        @queue.enq :END_OF_WORK
+        @inqueue.enq :END_OF_WORK
         end
         threads.each {|t| t.join}
-        puts "Update Over"
-    end
-#===========================================================
-    def self.update_fail_build_rate(repo_name)
-        #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
-        puts "in here"
-        Thread.abort_on_exception = true
-        threads = init_update_fail_build_rate
-        Withinproject.where("id>? and gh_project_name=?",0,repo_name).find_each do |info|
-        
-        # reponame="#{user}/#{repo}"
-        @queue.enq [info,repo_name]
-        end
-        @thread_num.times do   
-        @queue.enq :END_OF_WORK
-        end
-        threads.each {|t| t.join}
-        puts "Update Over"
+        puts "timediffUpdate Over"
         ActiveRecord::Base.clear_active_connections!
-        return
-          # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
-          # info.fail_build_rate=format("%.3f",Float(m)/c)
-          # info.save
+        return 
+        # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
+        # info.fail_build_rate=format("%.3f",Float(m)/c)
+        # info.save
     
-      end 
+    end 
     
-      def self. init_update_fail_build_rate
-        @queue=SizedQueue.new(@thread_num)
+    def self.init_update_timediff
+        @inqueue=SizedQueue.new(@thread_num)
         threads=[]
         @thread_num.times do 
-          thread = Thread.new do
+        thread = Thread.new do
             loop do
-              arry = @queue.deq
-              break if arry == :END_OF_WORK
-              m=Travistorrent.where("tr_build_id< ? and gh_project_name=? ",arry[0].tr_build_id,arry[1]).find_each.size
-              c=Travistorrent.where("tr_build_id< ? and gh_project_name=? and tr_status not in ('passed','canceled')",arry[0].tr_build_id,arry[1]).find_each.size
-              if m!=0
-                arry[0].fail_build_rate=format("%.3f",Float(c)/m)
-                arry[0].save
-                
-              end
-              #ActiveRecord::Base.clear_active_connections!
-              end
+            info = @inqueue.deq
+            break if info == :END_OF_WORK
+            Withinproject.where("id=?",info.id).find_each do |item|
+                item.diff_time=info.duration
+                item.save
+            end
+            #end
             end
             threads << thread
-          end
+        end
     
         threads
-      end
-#=================================================
-def self.update_prev_startime(repo_name)
-    #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
-    
-    Thread.abort_on_exception = true
-    threads = init_update_now_startime
-    #repo_name=user+"@"+repo
-    Withinproject.where("gh_project_name=? and prev_time is null",repo_name).find_each do |info|
-    
-        @queue.enq info
-    end
-  
-    @thread_num.times do   
-        @queue.enq :END_OF_WORK
-    end
-    threads.each {|t| t.join}
-    puts "now_startimeUpdate Over"
-    ActiveRecord::Base.clear_active_connections!
-    return
-      # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
-      # info.fail_build_rate=format("%.3f",Float(m)/c)
-      # info.save
-  
-end 
-  
-  def self.init_update_now_startime
-    @queue=SizedQueue.new(@thread_num)
-    threads=[]
-    mutex=Mutex.new
-    #@thread_num.times do 
-      thread = Thread.new do
-        loop do
-          info = @queue.deq
-          break if info == :END_OF_WORK
-          
-            
-          
-          #if Travistorrent.where("git_commit=?",info.pre_builtcommit).find_each.size>0
-            #mutex.lock
-            Travistorrent.where("git_commit=?",info.pre_builtcommit).find_each do |item|
-              info.prev_time=item.gh_first_commit_created_at
-              info.save
-              
-            end
-            #mutex.unlock
-        #end
-          #ActiveRecord::Base.clear_active_connections!
-          #end
-        end
-        threads << thread
-      end
-  
-    threads
-  end  
-  
-  #====================================================
-  def self.update_fixprevstartime(repo_name)
-    #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
-    
-    Thread.abort_on_exception = true
-    threads = init_fixprevstartime
-    #repo_name=user+"@"+repo
-    Withinproject.where("gh_project_name=? and prev_time is null",repo_name).find_each do |info|
-    
-        @queue2.enq info
-    end
-  
-    @thread_num.times do   
-        @queue2.enq :END_OF_WORK
-    end
-    threads.each {|t| t.join}
-    puts "now_startimeUpdate Over"
-    ActiveRecord::Base.clear_active_connections!
-    return
-      # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
-      # info.fail_build_rate=format("%.3f",Float(m)/c)
-      # info.save
-  
-end 
-  
-  def self.init_fixprevstartime
-    @queue2=SizedQueue.new(@thread_num)
-    threads=[]
-    mutex=Mutex.new
-    #@thread_num.times do 
-      thread = Thread.new do
-        loop do
-          info = @queue2.deq
-          break if info == :END_OF_WORK
-          
-            
-          
-          #if Travistorrent.where("git_commit=?",info.pre_builtcommit).find_each.size>0
-            #mutex.lock
-            All_repo_data_virtual.where("commit=? and repo_name=?",info.pre_builtcommit,info.gh_project_name.gsub('/','@')).find_each do |item|
-              info.prev_time=item.started_at
-              info.save
-              
-            end
-            #mutex.unlock
-        #end
-          #ActiveRecord::Base.clear_active_connections!
-          #end
-        end
-        threads << thread
-      end
-  
-    threads
-  end  
-  
-  
-
-
-
-  #====================================================
-  def self.update_timediff(repo_name)
-    #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count
-    
-    Thread.abort_on_exception = true
-    threads = init_update_timediff
-    #repo_name=user+"@"+repo
-    puts "update_timediff"
-    diff_arry=[]
-    Withinproject.find_by_sql("SELECT id,TIMESTAMPDIFF(HOUR,withinprojects.prev_time,withinprojects.gh_first_commit_created_at) as duration FROM withinprojects where diff_time is null and gh_project_name='#{repo_name}'").find_all do |info|
-    #puts info
-    #diff_arry<<info.duration
-        @inqueue.enq info
-    end
-    
-    @thread_num.times do   
-    @inqueue.enq :END_OF_WORK
-    end
-    threads.each {|t| t.join}
-    puts "timediffUpdate Over"
-    ActiveRecord::Base.clear_active_connections!
-    return 
-      # m=Repo_data_travi.where("build_id< ? and repo_name=? ",info[:build_id],reponame).find_each.size
-      # info.fail_build_rate=format("%.3f",Float(m)/c)
-      # info.save
-  
-  end 
-   
-  def self.init_update_timediff
-    @inqueue=SizedQueue.new(@thread_num)
-    threads=[]
-    #@thread_num.times do 
-      thread = Thread.new do
-        loop do
-          info = @inqueue.deq
-          break if info == :END_OF_WORK
-          Withinproject.where("id=?",info.id).find_each do |item|
-            item.diff_time=info.duration
-            item.save
-          end
-          #end
-        end
-        threads << thread
-      end
-  
-    threads
-  end  
+    end  
   
   
   
@@ -1073,174 +1074,167 @@ end
   
   
 #=================================================
-def self.init_fix_trstatus 
-    @queue = SizedQueue.new(@thread_num)
-    threads=[]
-            @thread_num.times do 
-            thread = Thread.new do
-                loop do
-                info = @queue.deq
-                break if info == :END_OF_WORK
-                builds=[]
-                item=Travistorrent.where("tr_build_id=?",info.tr_build_id).first  
-                next if item.nil?
-                        if item.tr_status=='passed'
-                            info.prev_tr_status=1
-                        else
-                            info.prev_tr_status=0
-                        end
-                       
-                        info.save
-                      
-                        
-                    
+    # def self.init_fix_trstatus 
+    #     @queue = SizedQueue.new(@thread_num)
+    #     threads=[]
+    #             @thread_num.times do 
+    #             thread = Thread.new do
+    #                 loop do
+    #                 info = @queue.deq
+    #                 break if info == :END_OF_WORK
+    #                 builds=[]
+    #                 item=Travistorrent.where("tr_build_id=?",info.tr_build_id).first  
+    #                 next if item.nil?
+    #                 if item.tr_status=='passed'
+    #                     info.prev_tr_status=1
+    #                 else
+    #                     info.prev_tr_status=0
+    #                 end
                 
-                # puts "========="
-                # Withinproject.import builds,validate: false
-                ActiveRecord::Base.clear_active_connections!
-                end
-            end
-                threads << thread
-            end
-    
-            threads
-    
-
-
-end
-def self.fix_trstatus(repo_name)
-
-Thread.abort_on_exception = true       
-        threads = init_fix_trstatus        
-        Withinproject.where("gh_project_name=? and prev_bl_cluster=-1 and prev_tr_status =0 ",repo_name).find_all do |info|
-        #puts info
-        #diff_arry<<info.duration
-        #build= info.attributes.deep_symbolize_keys
+    #                 info.save
+                
+    #                 ActiveRecord::Base.clear_active_connections!
+    #                 end
+    #             end
+    #                 threads << thread
+    #             end
         
-        @queue.enq info
-        end
+    #             threads
+    # end
+
+    # def self.fix_trstatus(repo_name)
+
+    #     Thread.abort_on_exception = true       
+    #             threads = init_fix_trstatus        
+    #             Withinproject.where("gh_project_name=? and prev_bl_cluster=-1 and prev_tr_status =0 ",repo_name).find_all do |info|
+    #             #puts info
+    #             #diff_arry<<info.duration
+    #             #build= info.attributes.deep_symbolize_keys
+                
+    #             @queue.enq info
+    #             end
+                
+    #             @thread_num.times do   
+    #             @queue.enq :END_OF_WORK
+    #             end
+    #             threads.each {|t| t.join}
+    #             puts "fix_trstatusUpdate Over"
+    #             puts repo_name
+    #             ActiveRecord::Base.clear_active_connections!
+    #             return
         
-        @thread_num.times do   
-        @queue.enq :END_OF_WORK
-        end
-        threads.each {|t| t.join}
-        puts "fix_trstatusUpdate Over"
-        puts repo_name
-        ActiveRecord::Base.clear_active_connections!
-        return
-    
-end
+    # end
 
 
 
 #=================================================
-def self.init_prev_pass
-    @queue = SizedQueue.new(@thread_num)
-    threads=[]
-            @thread_num.times do 
-            thread = Thread.new do
-                loop do
-                info = @queue.deq
-                break if info == :END_OF_WORK
-                builds=[]
-                items=[]
-                All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",info.pre_builtcommit,info.gh_project_name).find_each do |all_repo|
-                    
-                        items << all_repo
-                       
-                    
-                end
-                for item in items do
-                    while item.status!='passed' and !item.nil?
-                        if All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).count<1
-                            item=nil
-                            next
-                        else
-
-                        end
-                        All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).find_each do |all_repo|
-                            if all_repo.status=='passed'
-                                item=all_repo
-                                break
-                            else
-                                item=all_repo
-                            end     
-    
-                        end
-                    end
-                end
-                
-                while item.status!='passed' and !item.nil?
-                    tmp=item
-                    # Withinproject.where("git_commit=?",item.git_commits.split('#').last).count<1
-
-                    if All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).count<1
-                        item=nil
-                        break
-                    end
-                    All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).find_each do |all_repo|
-                        if all_repo.status=='passed'
-                            item=all_repo
-                            break
-                        else
-                            item=all_repo
-                        end     
-
-                    end
-                    
-                end
-                if !item.nil?
-                    user=info.gh_project_name.split('/').first
-                    repo=info.gh_project_name.split('/').last
-                    DiffWithin.test_diff(user,repo,item.last_build_commit,info,2)
-                # else
-                #     while tmp.tr_status!='passed' and !tmp.nil?
+    # def self.init_prev_pass
+    #     @queue = SizedQueue.new(@thread_num)
+    #     threads=[]
+    #             @thread_num.times do 
+    #             thread = Thread.new do
+    #                 loop do
+    #                 info = @queue.deq
+    #                 break if info == :END_OF_WORK
+    #                 builds=[]
+    #                 items=[]
+    #                 All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",info.pre_builtcommit,info.gh_project_name).find_each do |all_repo|
                         
-                #         tmp=Travistorrent.where("git_commit=?",item.git_commits.split('#').last).first
+    #                         items << all_repo
                         
-                #     end
-                #     if
-                #         if !tmp.nil?
-                #             user=info.gh_project_name.split('/').first
-                #             repo=info.gh_project_name.split('/').last
-                #             DiffWithin.test_diff(user,repo,tmp.git_commit,info,2)
-                #         end
+                        
+    #                 end
+    #                 for item in items do
+    #                     while item.status!='passed' and !item.nil?
+    #                         if All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).count<1
+    #                             item=nil
+    #                             next
+    #                         else
 
-                #     end
+    #                         end
+    #                         All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).find_each do |all_repo|
+    #                             if all_repo.status=='passed'
+    #                                 item=all_repo
+    #                                 break
+    #                             else
+    #                                 item=all_repo
+    #                             end     
+        
+    #                         end
+    #                     end
+    #                 end
+                    
+    #                 while item.status!='passed' and !item.nil?
+    #                     tmp=item
+    #                     # Withinproject.where("git_commit=?",item.git_commits.split('#').last).count<1
+
+    #                     if All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).count<1
+    #                         item=nil
+    #                         break
+    #                     end
+    #                     All_repo_data_virtual_prior_merge.where("now_build_commit=? and repo_name=?",item.last_build_commit,item.repo_name).find_each do |all_repo|
+    #                         if all_repo.status=='passed'
+    #                             item=all_repo
+    #                             break
+    #                         else
+    #                             item=all_repo
+    #                         end     
+
+    #                     end
+                        
+    #                 end
+    #                 if !item.nil?
+    #                     user=info.gh_project_name.split('/').first
+    #                     repo=info.gh_project_name.split('/').last
+    #                     DiffWithin.test_diff(user,repo,item.last_build_commit,info,2)
+    #                 # else
+    #                 #     while tmp.tr_status!='passed' and !tmp.nil?
+                            
+    #                 #         tmp=Travistorrent.where("git_commit=?",item.git_commits.split('#').last).first
+                            
+    #                 #     end
+    #                 #     if
+    #                 #         if !tmp.nil?
+    #                 #             user=info.gh_project_name.split('/').first
+    #                 #             repo=info.gh_project_name.split('/').last
+    #                 #             DiffWithin.test_diff(user,repo,tmp.git_commit,info,2)
+    #                 #         end
+
+    #                 #     end
 
 
-                end
-                    #ActiveRecord::Base.clear_active_connections!
-                
-                # puts "========="
-                # Withinproject.import builds,validate: false
-                
-                end
-            end
-                threads << thread
-            end
-    
-            threads
-    
-end
+    #                 end
+    #                     #ActiveRecord::Base.clear_active_connections!
+                    
+    #                 # puts "========="
+    #                 # Withinproject.import builds,validate: false
+                    
+    #                 end
+    #             end
+    #                 threads << thread
+    #             end
+        
+    #             threads
+        
+    # end
 
 
-#================================================================
-    def self.prev_pass(repo_name)
-        Thread.abort_on_exception = true
-        threads = init_prev_pass
-        Withinproject.where("id>? and gh_project_name=? and tr_status<>'passed'",0,repo_name).group("git_commit").find_each do |info|
+
+    # def self.prev_pass(repo_name)
+    #     Thread.abort_on_exception = true
+    #     threads = init_prev_pass
+    #     Withinproject.where("id>? and gh_project_name=? and tr_status<>'passed'",0,repo_name).group("git_commit").find_each do |info|
         
        
-        @queue.enq info
-        end
-        @thread_num.times do   
-        @queue.enq :END_OF_WORK
-        end
-        threads.each {|t| t.join}
-        puts "Update Over"
+    #     @queue.enq info
+    #     end
+    #     @thread_num.times do   
+    #     @queue.enq :END_OF_WORK
+    #     end
+    #     threads.each {|t| t.join}
+    #     puts "Update Over"
         
-    end  
+    # end  
 #============================================ 
     def self.init_week_day
         @queue = SizedQueue.new(@thread_num)
@@ -1262,9 +1256,6 @@ end
                 end
         
                 threads
-        
-    
-    
         
     end
      
@@ -1288,18 +1279,18 @@ end
     def self.run(repo_name)
         user=repo_name.split('/').first
         repo=repo_name.split('/').last
-        get_allpj
-        update_prev_startime(repo_name)
-        update_fixprevstartime(repo_name)
-        # update_timediff(repo_name)
+        # get_allpj
+        # update_prev_startime(repo_name)
+        # update_fixprevstartime(repo_name)
+        # # update_timediff(repo_name)
          
-        #update_fail_build_rate(repo_name)
-        #fix_trstatus(repo_name)
-        prev_builtcommit(repo_name)
-        update_job_number(repo_name)
-        #save_maven_errors
-        #DiffWithin.test_diff(user,repo,0,0,0)
-        get_table(repo_name)
+        # #update_fail_build_rate(repo_name)
+        # #fix_trstatus(repo_name)
+        # prev_builtcommit(repo_name)
+        # update_job_number(repo_name)
+        # #save_maven_errors
+        # #DiffWithin.test_diff(user,repo,0,0,0)
+        # get_table(repo_name)
         weekday(repo_name)
         #parse_maven_error_file(repo_name)
         # update_errormodifiled(repo_name)
@@ -1310,27 +1301,7 @@ end
     end
 
 
-    def self.init_allocate
-        @inqueue = SizedQueue.new(@thread_num)
-        threads=[]
-                @thread_num.times do 
-                thread = Thread.new do
-                    loop do
-                    info = @inqueue.deq
-                    break if info == :END_OF_WORK
-                    run info
-                    # puts "========="
-                    # Withinproject.import builds,validate: false
-                    
-                    end
-                end
-                    threads << thread
-                end
-                threads       
-    end
-
-
-
+   
     
     def self.method_name
         #run 'structr/structr'

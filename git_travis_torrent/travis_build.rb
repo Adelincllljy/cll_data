@@ -92,7 +92,7 @@ def get_build(builds, build, wait_in_s = 1)
 
     commit = builds['commits'].find { |x| x['id'] == build['commit_id'] }
     #puts "build"
-    #puts build
+    # puts build
 
     build_data = {
         :build_id => build['id'],
@@ -105,7 +105,7 @@ def get_build(builds, build, wait_in_s = 1)
         # [doc] The full build duration as returned from the Travis CI API.
         :duration => build['duration'],
         :started_at => build['started_at'], # in UTC
-        
+        :ended_at => build['finished_at'],
         # [doc] The unique Travis IDs of the jobs, in a string separated by `#`.
         :jobs => build['job_ids'],
         
@@ -245,13 +245,13 @@ def init_method_name
             loop do
               puts "get_traviss"
             repo_name = @inqueue.deq
-            puts repo_name
+            
             break if repo_name == :END_OF_WORK
             @check_dir = File.join('build_logs/', repo_name.gsub(/\//, '@'))
-            if !FileTest::exist?(File.join(@check_dir, 'repo-data-travis.json'))
-              
+            # if !FileTest::exist?(File.join(@check_dir, 'repo-data-travis.json'))
+              # puts "no json #{repo_name}"
               get_travis repo_name,true
-            end
+            # end
             #(repo_name,true)
             
             
@@ -271,18 +271,18 @@ def method_name
         #threads = init_update_last_build_status2
         
   threads=init_method_name
-  repo_name=IO.readlines('repo_name.txt')
+  repo_name=IO.readlines('new_reponame.txt')
   i=0
  # puts repo_name
   repo_name.each do |line|
     
     
       
-      i+=1
+      
       nameline = JSON.parse(line)
       
       @inqueue.enq nameline
-   
+      
     
     #get_travis(line, true)
     #test(line.split('/').first,line.split('/').last)

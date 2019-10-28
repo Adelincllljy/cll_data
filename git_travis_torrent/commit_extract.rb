@@ -202,6 +202,7 @@ require File.expand_path('../fix_sql.rb',__FILE__)
 
           a[:repo_name]="#{user}@#{repo1}"
           
+          
         end
         builds = builds.group_by { |x| x[:build_id] }.map { |k, v| v[0] }
         puts "After filtering duplicate build_id: #{builds.size} builds"
@@ -246,8 +247,8 @@ require File.expand_path('../fix_sql.rb',__FILE__)
              :commit => commit.oid,
              :message => commit.message,
              :commit_parents => commit.parent_ids,
-             :committer_email => commit.committer[:email]
-             
+             :committer_email => commit.committer[:email],
+             :commit_start_at => commit.time
            }
           
         rescue
@@ -338,7 +339,7 @@ require File.expand_path('../fix_sql.rb',__FILE__)
     # local_no_record=[]
     # local_norecord.each do |line|
     #   local_no_record << JSON.parse(line)
-    # end
+    # end 
     # rescue
     #   local_no_record=[]
     # end
@@ -356,6 +357,7 @@ require File.expand_path('../fix_sql.rb',__FILE__)
                       if Commit_info.where("commit=?",build[:commit]).find_each.size!=0
                         Commit_info.where("commit=?",build[:commit]).find_each do |commit_info|
                           shas=commit_info[:message].match(/Merge (.*) into (.*)/i).captures
+                          
                         end
                         puts 'commit_info有'
                         ActiveRecord::Base.clear_active_connections!
@@ -501,9 +503,9 @@ def self.init_build_state
       loop do
         arry = @queue.deq
         break if arry == :END_OF_WORK
-        if arry[0][:commit]=='df778b7b80d290802ec8268d40ca70f7182cd118'
-          next
-        end
+        # if arry[0][:commit]=='df778b7b80d290802ec8268d40ca70f7182cd118'
+        #   next
+        # end
         #repository = Travis::Repository.find(arry[0][:repo_name].sub(/@/, "/"))
         pre_commit=[]
         $id=arry[0][:id]
@@ -1362,7 +1364,7 @@ def test_prior(user,repo)
 end
 
 def method_name
-  repo_name=IO.readlines('repo_name.txt')
+  repo_name=IO.readlines('new_reponame.txt')
   i=0
   # repo_name.each do |line|
   #   line = JSON.parse(line)
@@ -1377,6 +1379,7 @@ def method_name
   #     i+=1
   #   end
   # end
+  i=0
   repo_name.each do |line|
     line = JSON.parse(line)
     
@@ -1385,7 +1388,7 @@ def method_name
     
     @parent_dir = File.join('build_logs/',  "#{@user}@#{@repo}")
     
-    if i>=23
+    if i>=0
       process(@user,@repo)
       #commitinfo(@user,@repo)
       #found_vcommit(@user,@repo)

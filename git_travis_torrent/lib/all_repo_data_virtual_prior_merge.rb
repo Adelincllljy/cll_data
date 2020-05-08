@@ -11,7 +11,7 @@ class All_repo_data_virtual_prior_merge< ActiveRecord::Base
     database: "cll_data",  
     encoding: "utf8mb4",
     collation: "utf8mb4_unicode_ci",
-    pool: 200
+    pool: 500
 )
 has_one :filemodif_infos
 has_one :file_paths

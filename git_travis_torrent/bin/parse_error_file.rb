@@ -202,7 +202,7 @@ module ParseErroFile
             maven_file=[]
             if (!info.maven_slice.empty?)
                  
-                #puts info.id
+                puts info.id
                 maven_file=info.maven_slice[0].gsub(" ", "")
              
              
@@ -220,18 +220,22 @@ module ParseErroFile
             result2=[]#记录warning
             result3=[]
             if (!info.test_inerror.empty?) 
-                #puts info.test_inerror
+                puts info.test_inerror
                 for line in info.test_inerror
                     
                     if line!=" " and line!="\n"
-                       # puts line.gsub(" ","") 
-                        maven_file<< line.gsub(" ","") 
+                       # puts line.gsub(" ","")
+                        line1=line.gsub(" ","")
+                        
+                        line1=line1.gsub("...","")
+                        line1=line1.gsub("..","")
+                        maven_file<< line1
                         #maven_file<< line.gsub(" "||"\\n", "")
                     end
                 
                 end
                 maven_file=maven_file.join
-                #puts maven_file
+                # puts maven_file
                 result = maven_file.scan(/.*?\((.*)?\)[:]/)
                 result2=maven_file.scan(/.*?foundin(.*)/)
                 if !result.empty?
@@ -255,7 +259,9 @@ module ParseErroFile
                     #result2=maven_file.scan(/.*?(.*)[:]/)
 
                     maven_file=maven_file.split("\n")
+                    # puts "split (\n) #{maven_file}"
                     tmp=[]
+                    flag=0
                     
                     for item in maven_file
                         #result2=item.scan(/.*?[\s\S]*?(.*?)[\.]/)
@@ -272,47 +278,95 @@ module ParseErroFile
                             contents=item.split('->')
                             for data in contents do
                                 data=~/.*?(.*?)[\.](.*?)[:]/
-                                puts "$1 #{$1}"
+                                # puts "$1 #{$1}"
                                 # puts "$1 match :#{$1.match?(/[tT]est/)}"
                                 # puts $1
                                 if !$1.nil? and ($1.match?(/[tT]est/) or $1.match?(/[cC]ase/))
-                                    tmp<<$1
+                                    tmp<<$1 
                                 end
                                 
                             end
                             
                         else
-                            item_arry= item.split(":")
-                            for itema in item_arry
-                                if itema.count('.')==1
-                                    flag=1
-                                    break
+                            if item.include? ":"
+                                item_arry= item.split(":")
+                                if item_arry.size>1 
+                                    for itema in item_arry
+                                        if itema.count('.')==1
+                                            flag=1
+                                            break
+                                        end
+                                        if itema.count('.')>1
+                                            flag=2
+                                            break
+                                            
+                                        end
+                                    end
+                                    if flag==1   
+                                        item=~ /.*?(.*?)[\.](.*?)[:]/
+                                        if !$1.nil?
+                                            # puts "flag=1: #{$1}"
+                                        tmp<<$1
+                                        end
+                                    elsif flag==2
+                                        
+                                        item=~ /.*?(.*?)[:]/
+                                        
+                                        if !$1.nil?
+                                            # puts "flag=2: #{$1}"
+                                        tmp << $1
+                                        end
+                                    else
+                                        item=~ /.*?(.*?)[\.](.*?)[:]/
+                                        if !$1.nil?
+                                        tmp<<$1
+                                        end
+                                    end
                                 end
-                                if itema.count('.')>1
+                            else 
+                                puts "no :"
+                                if item.count('.')==1
+                                    flag=1
+                                    
+                                
+                                else
                                     flag=2
-                                    break
+                                    
                                     
                                 end
+                                if flag==1   
+                                    item=~ /.*?(.*?)[\.](.*?)/
+                                    if !$1.nil?
+                                        # puts "flag=1: #{$1}"
+                                    tmp<<$1
+                                    end
+                                elsif flag==2
+                                    
+                                    item=~ /.*?(.*?)/
+                                    
+                                    if !$1.nil?
+                                        # puts "flag=2: #{$1}"
+                                    tmp << $1
+                                    end
+                                else
+                                    item=~ /.*?(.*?)[\.](.*?)/
+                                    if !$1.nil?
+                                    tmp<<$1
+                                    end
+                                end
+
                             end
-                            if flag==1   
-                                item=~ /.*?(.*?)[\.](.*?)[:]/
-                                if !$1.nil?
-                                tmp<<$1
-                                end
-                            elsif flag==2
-                                
-                                item=~ /.*?(.*?)[:]/
-                                
-                                if !$1.nil?
-                                tmp << $1
-                                end
-                            else
-                                item=~ /.*?(.*?)[\.](.*?)[:]/
-                                if !$1.nil?
-                                tmp<<$1
-                                end
-                            end
+
+                        
                         end
+                        if item=~ /.*?\((.*)?\)/
+                            if !$1.nil? and $1.match?(/[tT]est/)
+                                tmp << $1
+                                # puts "\((.*)?\) : #{$1}"
+                                
+                            end
+                            
+                        end 
                         
                     end
                     result2=tmp.uniq
@@ -342,47 +396,56 @@ module ParseErroFile
                     # end 
                     #puts "file_arry here"
                 
-                end 
+            end 
             maven_file=[]
             result=[]  
             result2=[]
             if (!info.fail_test.empty?) 
+                # puts "info.fail_test #{info.fail_test}"
                 for line in info.fail_test
-                    if line!=" "&&line!="\n"
-                        maven_file << line.gsub(" "||"\\n", "")
+                   
+                    if line!=" " and line!="\n"
+                       # puts line.gsub(" ","")
+                        line1=line.gsub(" ","")
+                        
+                        line1=line1.gsub("...","")
+                        line1=line1.gsub("..","")
+                        maven_file<< line1
+                        #maven_file<< line.gsub(" "||"\\n", "")
                     end
                 
                 end
                 maven_file=maven_file.join
-                #puts maven_file
+                # puts maven_file
                 result = maven_file.scan(/.*?\((.*)?\)[:]/)
                 result2=maven_file.scan(/.*?foundin(.*)/)
-                if result.empty?
-                    #puts "result.empty?"
-                    result=maven_file.scan(/.*?\((.*)?\)/)
-                end
                 if !result.empty?
-                    #puts "!result.empty?"
                     if result[0][0].include? '.'
+                    
                         result=result.uniq
-                        #puts "result.uniq"
-                       # puts result
                     else
-                        #puts "222"
+                    
                         result=[]
                         
                     end
-                end
+                end 
                 if !result2.empty?
+                    
+                
                     if result2[0][0].include? '.'
-                        #puts "include===="
+                        
                         result2=result2.uniq
                     end
                 else
-                    result2=[]
+                    #result2=maven_file.scan(/.*?(.*)[:]/)
+
                     maven_file=maven_file.split("\n")
+                    # puts "split (\n) #{maven_file}"
                     tmp=[]
+                    flag=0
+                    
                     for item in maven_file
+                        #result2=item.scan(/.*?[\s\S]*?(.*?)[\.]/)
                         if item.include?'#'
                             #puts"incude#"
                             #result2=item.scan(/.*?(.*?)[#]/)
@@ -392,71 +455,128 @@ module ParseErroFile
                                 tmp<<$1
                             end
                         elsif item.include? '->'
+                            puts "->"
                             contents=item.split('->')
                             for data in contents do
                                 data=~/.*?(.*?)[\.](.*?)[:]/
                                 # puts "$1 #{$1}"
                                 # puts "$1 match :#{$1.match?(/[tT]est/)}"
                                 # puts $1
-                                if !$1.nil? and $1.match?(/[tT]est/)
-                                    tmp<<$1
+                                if !$1.nil? and ($1.match?(/[tT]est/) or $1.match?(/[cC]ase/))
+                                    tmp<<$1 
                                 end
                                 
                             end
                             
                         else
-                            #puts "else"
-                            item_arry= item.split(":")
-                            for itema in item_arry
-                                if itema.count('.')==1
-                                    flag=1
-                                    break
+                            if item.include? ":"
+                                # puts "include :"
+                                item_arry= item.split(":")
+                                if item_arry.size>1 
+                                    for itema in item_arry
+                                        if itema.count('.')==1
+                                            flag=1
+                                            break
+                                        end
+                                        if itema.count('.')>1
+                                            flag=2
+                                            break
+                                            
+                                        end
+                                    end
+                                    if flag==1   
+                                        item=~ /.*?(.*?)[\.](.*?)[:]/
+                                        if !$1.nil?
+                                            # puts "flag=1: #{$1}"
+                                        tmp<<$1
+                                        end
+                                    elsif flag==2
+                                        
+                                        item=~ /.*?(.*?)[:]/
+                                        
+                                        if !$1.nil?
+                                            # puts "flag=2: #{$1}"
+                                        tmp << $1
+                                        end
+                                    else
+                                        item=~ /.*?(.*?)[\.](.*?)[:]/
+                                        if !$1.nil?
+                                        tmp<<$1
+                                        end
+                                    end
                                 end
-                                if itema.count('.')>1
+                            else 
+                                
+                                if item.count('.')==1
+                                    flag=1
+                                    
+                                
+                                else
                                     flag=2
-                                    break
+                                    
                                     
                                 end
+                                if flag==1   
+                                    item=~ /.*?(.*?)[\.](.*?)/
+                                    if !$1.nil?
+                                       
+                                    tmp<<$1
+                                    end
+                                elsif flag==2
+                                    
+                                    item=~ /.*?(.*?)/
+                                    
+                                    if !$1.nil?
+                                        # puts "flag=2: #{$1}"
+                                    tmp << $1
+                                    end
+                                else
+                                    item=~ /.*?(.*?)[\.](.*?)/
+                                    if !$1.nil?
+                                    tmp<<$1
+                                    end
+                                end
+
                             end
-                            if flag==1   
-                                item=~ /.*?(.*?)[\.](.*?)[:]/
-                                if !$1.nil?
-                                tmp<<$1
-                                end
-                            elsif flag==2
-                                
-                                item=~ /.*?(.*?)[:]/
-                                
-                                if !$1.nil?
-                                tmp << $1
-                                end
-                            else
-                                item=~ /.*?(.*?)[\.](.*?)[:]/
-                                if !$1.nil?
-                                tmp<<$1
-                                end
-                            end
+
+                        
                         end
+                        if item=~ /.*?\((.*)?\)/
+                            if !$1.nil? and $1.match?(/[tT]est/)
+                                tmp << $1
+                                # puts "\((.*)?\) : #{$1}"
+                                
+                            end
+                            
+                        end 
+                        
                     end
                     result2=tmp.uniq
-                    #puts "result2 #{result2}"
                 end
                 
-                result=result.uniq
-                for item in result
-                    file_arry << item[0].gsub(".","\/")
-                end
-                for item in result2
-                    if item.class==Array
-                    file_arry << item[0].gsub(".","\/")
-                    else
-                        file_arry << item.gsub(".","\/")
+                    
+                    #result3=result3.uniq
+                    #嵌套的数组
+                    
+                    for con_info in result
+                        
+                        file_arry << con_info[0].gsub(".","\/")
                     end
+                    
+                    #puts file_arry
+                
+                    for item in result2
+                        if item.class==Array
+                        file_arry << item[0].gsub(".","\/")
+                        else
+                            file_arry << item.gsub(".","\/")
+                        end
 
-                end
+                    end
                 #puts file_arry
             end
             file_arry=file_arry.uniq
+            # puts "file_arry:#{file_arry}"
             #puts "file_arry #{file_arry}"
             if !file_arry.empty?
                 file_arry=file_arry.reject {|m| m==''}
@@ -490,7 +610,7 @@ module ParseErroFile
     def self.parse_maven_error_file(user,repo)
         Thread.abort_on_exception = true
         threads=init_parse_maven   
-        Maven_error.where("repo_name=? and log_exist=0 and error_type=0 ","#{user}@#{repo}").find_all do |info|
+        Maven_error.where("repo_name=? and log_exist=0 and error_type!=0 ","#{user}@#{repo}").find_all do |info|
         #Maven_error.where("id=7330").find_each do |info|
             @inqueue.enq info
             # puts info.id
@@ -506,132 +626,45 @@ module ParseErroFile
              
         
     end
+
+    def self.fixparse_maven_error_file(user,repo)
+        Thread.abort_on_exception = true
+        threads=init_parse_maven   
+        Maven_error.where("repo_name=? and log_exist=0 and other_error=0 and error_file is null","#{user}@#{repo}").find_all do |info|
+        #Maven_error.where("id=7330").find_each do |info|
+            
+            @inqueue.enq info
+            
+        end
+        @thread_num.times do
+            @inqueue.enq :END_OF_WORK
+        end
+        threads.each {|t| t.join}
+        puts "parse_mavenUpdate Over"  
     
+        return            
+             
+             
+        
+    end
+
     def self.maven_test()
         
-        Withinproject.where("id =2").find_all do |info|
-            file_arry=[]
-            result=[]
-            maven_file=[]
-            if (!info.maven_slice.empty?) 
-                #and (info.compliation==1)
-                puts info.id
-                
-                for item in info.maven_slice
-                    result=[]
-                    maven_file=item.gsub(" ", "")
-                    result= maven_file.scan(/.*?\[ERROR?\](.*):[?\[]/)
-                    result=result.uniq
-                    puts result
-                    for item in result
-                        file_arry << item
-                    end
-                end
-            end
-            maven_file=[]
-            result=[]
-            result2=[]#记录warning 
-            
-            if (!info.test_inerror.empty?)
-                
-                for line in info.test_inerror
-                    if line!=" " and line!="\n"
-                        maven_file<< line.gsub(" ", "") 
-                    end
-                
-                end
-                
-                maven_file=maven_file.join
-                puts "maven_file:"
-                puts maven_file.class
-                puts maven_file
-                
-                result = maven_file.scan(/.*?\((.*)?\)/)
-                result2=maven_file.scan(/.*?foundin(.*)/)
-                # if result.empty?
-                #     result = maven_file.scan(/.*?(.*).*?[\.]/)
-                #     puts "result"
-                #     puts result.class
-                #     puts result
-                # end
-                if result2.include? '.'
-                    puts "include ."
-                    result2=result2.uniq
-                else
-                    maven_file=maven_file.split("\n")
-                    tmp=[]
-                    for item in maven_file
-                        #result2=item.scan(/.*?[\s\S]*?(.*?)[\.]/)
-                        if item.include?'#'
-                            result2=item.scan(/.*?(.*?)[#]/)
-                            if !result2[0].nil?
-                                tmp<<result2[0]
-                            end
-                        else
-                            result2=item.scan(/.*?(.*?)[\.]/)
-                            if !result2[0].nil?
-                            tmp<<result2[0]
-                            end
-                        end
-                    end
-                    result2=tmp.uniq
-                    puts result2 
-                end
-                for item in result2
-                    puts item[0]
-                    file_arry << item[0].gsub(".","\/")
-                    puts file_arry
-                end
-                
-                # if result2.empty?
-                #     result2=maven_file.scan(/.*?foundin(.*)/)
-                    
-                # end
-                # puts "result==============="
-                # puts result
-                # puts "result2==============="
-                # puts result2
-                # puts result2.size
-                # result=result.uniq
-                # for item in result
-                #     file_arry << item
-                # end
-            end 
-            maven_file=[]
-            result=[] 
-            
-            # if (!info.test_in_error.empty?) and (info.test==1)
-            #     puts "test_in_error"
-            #     puts "info.test_in_error#{info.test_in_error}"
-            #     for line in info.test_in_error
-            #         if line!=" "&&line!="\n"
-            #             maven_file << line.gsub(" ", "")
-            #         end
-                
-            #     end
-            #     maven_file=maven_file.join
-            #     result = maven_file.scan(/.*?\((.*)?\)[:]/)
-            #     if result.empty?
-            #         puts"result.empty"
-            #         result=maven_file.scan(/.*?\((.*)?\)/)
-            #     end
-            #     puts "====="
-            #     puts result
-            #     result=result.uniq
-            #     for item in result
-            #         puts item[0].class
-            #         file_arry << item[0]
-            #     end
-            # end
-            # file_arry=file_arry.uniq
-            # if !file_arry.empty?
-            # puts file_arry
-            # for value in file_arry do
-            #     puts value.class
-                
-            # end
-            # end
+        Thread.abort_on_exception = true
+        threads=init_parse_maven   
+        Maven_error.where("id=111695").find_all do |info|
+        #Maven_error.where("id=7330").find_each do |info|
+        
+            @inqueue.enq info
+            # puts info.id
         end
+        @thread_num.times do
+            @inqueue.enq :END_OF_WORK
+        end
+        threads.each {|t| t.join}
+        puts "parse_mavenUpdate Over"  
+    
+        return            
     
         
     end 
@@ -654,7 +687,7 @@ user=ARGV[0]
 repo=ARGV[1]
 #ParseErroFile.test_group
 #ParseErroFile.parse_maven_error_file(user,repo)
-#ParseErroFile.maven_test()
+# ParseErroFile.maven_test()
 # ss=" 1abc1: is 1xxx1"
 # a=ss.scan(/1(.*)1:/)
 # puts a

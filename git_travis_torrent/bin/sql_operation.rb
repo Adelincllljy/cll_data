@@ -4,39 +4,56 @@ require File.expand_path('../parse_error_file.rb',__FILE__)
 require File.expand_path('../error_modified.rb',__FILE__)
 require File.expand_path('../maven_compilation.rb',__FILE__)
 require File.expand_path('../maven_test.rb',__FILE__)
-require File.expand_path('../diff_test.rb',__FILE__)
+require File.expand_path('../commit_info_file.rb',__FILE__)
+# require File.expand_path('../diff_test.rb',__FILE__)
 require File.expand_path('../../lib/all_repo_data_virtual_prior_merge.rb',__FILE__)
-require File.expand_path('../prev_pass.rb',__FILE__)
+require File.expand_path('../../add_previnfo.rb',__FILE__)
+# require File.expand_path('../prev_pass.rb',__FILE__)
 def run(user=0,repo=0) 
     # DiffTest.test_diff(user,repo)
-    # FixSql.delete_canceled
-    #FixSql.merge_processdup(user,repo)
-    # FixSql.update_last_build_status(user,repo)#now_build_id
     # FixSql.update_now_build_status2(user,repo)#now_status
+    # FixSql.delete_canceled
+    
+    # FixSql.update_last_build_status(user,repo)#now_build_id
+    # FixSql.delete_null(user,repo)
+    # FixSql.merge_processdup(user,repo)##now_build_id,commit_size,last_build_commit都重复
+    
+    
     # FixSql.update_now_label(user,repo)
     
     # FixSql.update_fail_build_rate(user,repo)
     # FixSql.update_now_startime(user,repo)
     # FixSql.update_timediff(user,repo) 
-    #  FixSql.update_job_number(user,repo)
-    #FixSql.update_prevchurn(user,repo)
-    # #  MavenCompilation.save_maven_errors(user,repo)
-   
-    # #  ParseErroFile.parse_maven_error_file(user,repo)#正则提取出错误的文件名
-    #    ErrorModified.update_errormodifiled(user,repo)
-    #     ErrorModified.error_type(user,repo)
-    #     FixSql.update_errtypeforpass(user,repo)
-    #FixSql.update_srcmodified(user,repo)
-      #PrevPass.cll_prevpass(user,repo)
-      # PrevPass.prev_diff(user,repo)
-      # ErrorModified.prev_passmodified(user,repo)
-      FixSql.upadate_newlabel(user,repo)
+    # FixSql.update_job_number(user,repo)
+    # FixSql.update_prevchurn(user,repo)  
+    # # MavenCompilation.save_maven_errors(user,repo) 
+    # # ParseErroFile.parse_maven_error_file(user,repo)#正则提取出错误的文件名
+    # # ParseErroFile.fixparse_maven_error_file(user,repo)#查漏补缺，前一次提取文件名漏掉的
 
+    # ErrorModified.update_errormodifiled(user,repo)
+    # ErrorModified.update_errornum(user,repo)
+    # ErrorModified.error_type(user,repo)
+    # FixSql.update_errtypeforpass(user,repo)
+    # FixSql.update_srcmodified(user,repo)
+    # PrevPass.cll_prevpass(user,repo)
+    # PrevPass.prev_diff(user,repo)
+    # ErrorModified.prev_passmodified(user,repo)
+    # FixSql.update_weekday(user,repo)
+    # FixSql.upadate_newlabel(user,repo)
+    # FixSql.update_teamsize(user,repo)
+    # FixSql.update_errormodif(user,repo)
+    # FixSql.update_nowduration(user,repo)
+    # FixSql.fixmerge_commit(user,repo)
       #build_state_threads(line.split('/').first,line.split('/').last)
-      
+      # AddPrevinfo.add_prev_info(user,repo)
+      ModuleName.insert_commit(user,repo)
+
+
+
+
     # FixSql.update_job_state(user,repo)#no
     #FixSql.diff_build_type#不需要
-     #FixSql.update_last_label(user,repo)#no
+    #FixSql.update_last_label(user,repo)#no
     #FixSql.father_id(user,repo)
     #FixSql.update_now_build_commit#这个后面不需要补充 了,在diff_test代码里直接把now_build_commit加上了
     #FixSql.update_file_moidfied#这个后面不需要补充了,在diff_test代码里直接把now_build_commit加上了
@@ -87,6 +104,7 @@ def write_file_add(contents,parent_dir)
 end
 
 def method_name
+  # parent_dir = File.expand_path('../../new_reponame.txt',__FILE__)
   parent_dir = File.expand_path('../../repo_name.txt',__FILE__)
     repo_name=IO.readlines(parent_dir)
     i=0
@@ -104,7 +122,7 @@ def method_name
         
         if i>=0
            run(user,repo)
-           #break
+        
         end
         i=i+1
         #   i+=1

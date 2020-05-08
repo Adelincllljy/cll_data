@@ -9,7 +9,7 @@ class Prev_passed < ActiveRecord::Base
       database: "travistorrent",
       encoding: "utf8mb4",
       collation: "utf8mb4_bin",
-      pool:200
+      pool:500
   )
   serialize :filpath, Array
   #serialize :gradle_slice, Array

@@ -808,58 +808,58 @@ module WithinProjects
         return
     end
 
-    # def self.init_getallpj
-    #     @queue = SizedQueue.new(@thread_num)
-    #     puts "@queue"
-    #     threads=[]
-    #             @thread_num.times do 
-    #             thread = Thread.new do
-    #                 loop do
-    #                 info = @queue.deq
-    #                 break if info == :END_OF_WORK
-    #                 builds=[]
-    #                 Travistorrent.select("id,row_num,git_commit, tr_build_id, gh_project_name, gh_is_pr, git_merged_with, gh_lang, git_branch, gh_first_commit_created_at, gh_team_size, git_commits, git_num_commits,tr_prev_build, gh_num_issue_comments, gh_num_commit_comments, gh_num_pr_comments, gh_src_churn, gh_test_churn, gh_files_added, gh_files_deleted, gh_files_modified, gh_tests_added, gh_tests_deleted, gh_src_files, gh_doc_files, gh_other_files, gh_commits_on_files_touched, gh_sloc, gh_test_lines_per_kloc, gh_test_cases_per_kloc,
-    #                      gh_asserts_cases_per_kloc, gh_by_core_team_member, gh_description_complexity, gh_pull_req_num, tr_status,tr_duration, tr_started_at, tr_jobs, tr_build_number, tr_job_id, tr_lan, tr_setup_time, tr_analyzer, tr_tests_ok, tr_tests_fail, tr_tests_run, tr_tests_skipped, tr_failed_tests, tr_testduration, tr_purebuildduration, tr_tests_ran, 
-    #                     tr_tests_failed, git_num_committers, tr_num_jobs, bl_log, bl_cluster, cmt_importchangecount, cmt_classchangecount, cmt_methodchangecount, cmt_fieldchangecount, 
-    #                     cmt_methodbodychangecount, cmt_buildfilechangecount").where("gh_project_name=? and tr_analyzer='java-maven' and gh_lang='java'",info).find_each do |item|
-    #                     hash=item.attributes.deep_symbolize_keys
-    #                     hash.delete(:id)
-    #                     test=Withinproject.new(hash)
-    #                     test.save 
-    #                     puts '======='
-    #                     ActiveRecord::Base.clear_active_connections!
-    #                 end
-    #                 # puts "========="
-    #                 # Withinproject.import builds,validate: false
+    def self.init_getallpj
+        @queue = SizedQueue.new(@thread_num)
+        puts "@queue"
+        threads=[]
+                @thread_num.times do 
+                thread = Thread.new do
+                    loop do
+                    info = @queue.deq
+                    break if info == :END_OF_WORK
+                    builds=[]
+                    Travistorrent.select("id,row_num,git_commit, tr_build_id, gh_project_name, gh_is_pr, git_merged_with, gh_lang, git_branch, gh_first_commit_created_at, gh_team_size, git_commits, git_num_commits,tr_prev_build, gh_num_issue_comments, gh_num_commit_comments, gh_num_pr_comments, gh_src_churn, gh_test_churn, gh_files_added, gh_files_deleted, gh_files_modified, gh_tests_added, gh_tests_deleted, gh_src_files, gh_doc_files, gh_other_files, gh_commits_on_files_touched, gh_sloc, gh_test_lines_per_kloc, gh_test_cases_per_kloc,
+                         gh_asserts_cases_per_kloc, gh_by_core_team_member, gh_description_complexity, gh_pull_req_num, tr_status,tr_duration, tr_started_at, tr_jobs, tr_build_number, tr_job_id, tr_lan, tr_setup_time, tr_analyzer, tr_tests_ok, tr_tests_fail, tr_tests_run, tr_tests_skipped, tr_failed_tests, tr_testduration, tr_purebuildduration, tr_tests_ran, 
+                        tr_tests_failed, git_num_committers, tr_num_jobs, bl_log, bl_cluster, cmt_importchangecount, cmt_classchangecount, cmt_methodchangecount, cmt_fieldchangecount, 
+                        cmt_methodbodychangecount, cmt_buildfilechangecount").where("gh_project_name=? and tr_analyzer='java-maven' and gh_lang='java'",info).find_each do |item|
+                        hash=item.attributes.deep_symbolize_keys
+                        hash.delete(:id)
+                        test=Withinproject.new(hash)
+                        test.save 
+                        puts '======='
+                        ActiveRecord::Base.clear_active_connections!
+                    end
+                    # puts "========="
+                    # Withinproject.import builds,validate: false
                     
-    #                 end
-    #             end
-    #                 threads << thread
-    #             end
+                    end
+                end
+                    threads << thread
+                end
         
-    #             threads
+                threads
         
-    # end
+    end
 
 
-    # def self.get_allpj(repo_name)
-    #     Thread.abort_on_exception = true       
-    #     threads = init_getallpj        
-    #     # Travistorrent.find_by_sql("SELECT gh_project_name FROM travistorrents where  tr_analyzer='java-maven' and gh_lang='java' and gh_project_name<>'structr/structr'  group by gh_project_name having count(*)>=1000").find_all do |info|
-    #     #puts info
-    #     #diff_arry<<info.duration
-    #     #build= info.attributes.deep_symbolize_keys
+    def self.get_allpj(repo_name)
+        Thread.abort_on_exception = true       
+        threads = init_getallpj        
+        # Travistorrent.find_by_sql("SELECT gh_project_name FROM travistorrents where  tr_analyzer='java-maven' and gh_lang='java' and gh_project_name<>'structr/structr'  group by gh_project_name having count(*)>=1000").find_all do |info|
+        #puts info
+        #diff_arry<<info.duration
+        #build= info.attributes.deep_symbolize_keys
         
         
-    #     @queue.enq repo_name
+        @queue.enq repo_name
         
         
-    #     @thread_num.times do   
-    #         @queue.enq :END_OF_WORK
-    #     end
-    #     threads.each {|t| t.join}
-    #     puts "Update Over"
-    # end
+        @thread_num.times do   
+            @queue.enq :END_OF_WORK
+        end
+        threads.each {|t| t.join}
+        puts "Update Over"
+    end
 #===========================================================
     # def self.update_fail_build_rate(repo_name)
     #     #c=Repo_data_travi.where( :repo_name => "#{user}@#{repo}").count

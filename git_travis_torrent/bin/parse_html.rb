@@ -4,18 +4,19 @@ require 'json'
 require 'date'
 require 'time'
 require 'fileutils'
-$token = [
-  "67d9c1839e5d323b5e5375e78c1ae1045acd4e76",#小白
-  "eff3fad7c4e987c03faa1b396836190a2cd0fda1",#双双
-  "4faaec64a3225ba0635a3bf9956d086da6851cd5",#我
-  "14bbbef635caa5f21da2b344c92d82aca9c2e6ed",#xue
-  "f853014921d9f44e2027ffc5f1d1a9430564b3a9",#麒麟
-  "60908621dd20b8db05803435d6cd6096dfcac5f5",#何川
-  "bfcc138aaed1e14c6118abf357b66bf225baf1df",#刘德卫
-  "855e1cacc1d020202fe4333c660354d5e848c7fb"#学弟
-]
-
-class ParseHtml
+require File.expand_path('../../lib/commit_info.rb',__FILE__)
+module ParseHtml
+  
+  @token = [
+    # "623f6c239d614b0c12ed94642815efe39a69d59b",#bad
+    "e7ee74749713821a882af6955212ca5926df2889",#bad
+    "1e2e6a896a4f081f6cbf8e99003980d36a01153f",#xue
+    # "4d37d731bc445de2421f4fbe7bf8ff772ce9af0b",
+    "38dbc6ce08b536f86b226afa533e8198f03ccf11",
+    "43d40a4f7e730416d7642b727c75674e7b39241b",
+    "fbc83d122891cb443b1c5c02cdfd491cd6d8e042"
+   
+  ]
   $REQ_LIMIT=4990
 def self.download_diff(url, wait_in_s = 1)
   if (wait_in_s > 64)
@@ -75,16 +76,18 @@ def self.github_commit (owner, repo, sha,k)
 
   url = "https://api.github.com/repos/#{owner}/#{repo}/commits/#{sha}"
   #puts "Requesting #{url} "
-
+  
+  k=rand(0..$token.size-1)
   contents = nil
   begin
     #puts "begin"
     #puts $token[k]
+    puts @token[k]
     r = open(url, 'User-Agent' => 'ghtorrent', 'Authorization' => "token #{$token[k]}")
     
     @remaining = r.meta['x-ratelimit-remaining'].to_i
     #puts "@remaining"
-    puts "@remaining#{@remaining}"
+    puts "normal @remaining:#{@remaining}"
     @reset = r.meta['x-ratelimit-reset'].to_i
     contents = r.read
     JSON.parse contents
@@ -92,39 +95,44 @@ def self.github_commit (owner, repo, sha,k)
     @remaining = e.io.meta['x-ratelimit-remaining'].to_i
     @reset = e.io.meta['x-ratelimit-reset'].to_i
     puts  "Cannot get #{url}. Error #{e.io.status[0].to_i}"
-    puts "#{$token[k]}:#{@remaining}"
+    puts "token.size: #{@token.size}"
+    puts "token[4]: #{@token[4]}"
+    puts "k:#{k}"
+    puts "token #{@token}"
+    puts "#{@token[k]}:#{@remaining}"
     {}
   rescue StandardError => e
-    @remaining = e.io.meta['x-ratelimit-remaining'].to_i
-    @reset = e.io.meta['x-ratelimit-reset'].to_i
+    
     puts "Cannot get #{url}. General error: #{e.message}"
-    puts "#{$token[k]}:#{@remaining}"
+    
 
     {}
   ensure
     File.open(commit_json, 'w') do |f|
       f.write contents unless r.nil?
-      if r.nil? and 5000 - @remaining >= 6
-        github_commit(owner, repo, sha,k)
-      end
+      # if r.nil? and 5000 - @remaining >= 6
+      #   github_commit(owner, repo, sha,k)
+      # end
+      f.write '' if r.nil?
       
     
     end
-
-    if 5000 - @remaining >= $REQ_LIMIT
-      to_sleep = 500
-      puts "Request limit reached, sleeping for #{to_sleep} secs"
-      puts "@remaining#{@remaining}"
-      
-      puts token[k]
-      sleep(to_sleep)
-      if k!=7
-        k=k+1
-      else
-        k=0
+    if !@remaining.nil?
+      if 5000 - @remaining >= $REQ_LIMIT
+        to_sleep = 500
+        puts "Request limit reached, sleeping for #{to_sleep} secs"
+        puts "@remaining:#{@remaining}"
+        
+        puts @token[k]
+        sleep(to_sleep)
+        if k!=$token.size-1
+          k=k+1
+        else
+          k=0
+        end
+        github_commit(owner, repo, sha,k)
+        #
       end
-      github_commit(owner, repo, sha,k)
-      #
     end
   end
 end

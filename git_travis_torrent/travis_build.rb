@@ -173,7 +173,7 @@ def get_travis(repo, build_logs = true, wait_in_s = 1)
   @error_file = File.join(@parent_dir, 'errors')
   @build_logs = build_logs
   FileUtils::mkdir_p(@parent_dir)
-  json_file = File.join(@parent_dir, 'repo-data-travis.json')
+  json_file = File.join(@parent_dir, 'Repo-data-travis.json')
 
   all_builds = []
 
@@ -248,10 +248,10 @@ def init_method_name
             
             break if repo_name == :END_OF_WORK
             @check_dir = File.join('build_logs/', repo_name.gsub(/\//, '@'))
-            # if !FileTest::exist?(File.join(@check_dir, 'repo-data-travis.json'))
-              # puts "no json #{repo_name}"
+            if !FileTest::exist?(File.join(@check_dir, 'repo-data-travis.json'))
+              puts "no json #{repo_name}"
               get_travis repo_name,true
-            # end
+            end
             #(repo_name,true)
             
             

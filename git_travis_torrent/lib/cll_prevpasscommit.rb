@@ -13,6 +13,8 @@ class Cll_prevpasscommit < ActiveRecord::Base
     pool: 200
 )
 serialize :prev_passcommits, Array
+serialize  :gap_num  ,Array
+serialize  :cancel_flag ,Array
 #serialize :src_path, Array
 
 #set_table_name 'all_repo_data_virtual_prior_merges' 

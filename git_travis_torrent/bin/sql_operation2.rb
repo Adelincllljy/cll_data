@@ -19,7 +19,8 @@ def run(user=0,repo=0)
     # FixSql.update_now_startime(user,repo)
     # FixSql.update_timediff(user,repo) 
     #  FixSql.update_job_number(user,repo)
-    #FixSql.update_prevchurn(user,repo)
+    # FixSql.update_prevchurn(user,repo)
+    FixSql.process_filepath_dup(user,repo)
     # #  MavenCompilation.save_maven_errors(user,repo)
    
     # #  ParseErroFile.parse_maven_error_file(user,repo)#正则提取出错误的文件名
@@ -27,13 +28,15 @@ def run(user=0,repo=0)
     #     ErrorModified.error_type(user,repo)
     #     FixSql.update_errtypeforpass(user,repo)
     # FixSql.update_srcmodified(user,repo)
-    PrevPass.cll_prevpass(user,repo)
-    PrevPass.prev_diff(user,repo)
+    # PrevPass.cll_prevpass(user,repo)
+    # PrevPass.prev_diff(user,repo)
     # ErrorModified.prev_passmodified(user,repo)
 
       #build_state_threads(line.split('/').first,line.split('/').last)
       
-    
+    # FixSql.update_endtime(user,repo)
+    # FixSql.update_weekday(user,repo)
+    # FixSql.update_timediff(user,repo)
 
 end
 def write_file_add(contents,parent_dir)
@@ -87,9 +90,9 @@ def method_name
         # # process(line.split('/').first,line.split('/').last)
         # #commitinfo(@user,@repo)
         
-        if i>=20
+        if i>=13
            run(user,repo)
-           #break
+           
         end
         i=i+1
         #   i+=1

@@ -6,7 +6,7 @@ require File.expand_path('../../lib/cll_prevpass.rb',__FILE__)
 require 'thread'
 require 'activerecord-import'
 module ErrorModified
-    @thread_num=20 
+    @thread_num=30
 
 def self.do_matchfile(file_arry,commit)
     File_path.where("last_build_commit=? and error_modified=0",commit).find_each do |item|
@@ -40,12 +40,12 @@ def self.do_matchfile(file_arry,commit)
 end
 
 def self.init_parse_maven
-    @inqueue = SizedQueue.new(@thread_num)
+    @inqueue3 = SizedQueue.new(@thread_num)
     threads=[]
     @thread_num.times do 
             thread = Thread.new do
                 loop do
-                info = @inqueue.deq
+                info = @inqueue3.deq
                 break if info == :END_OF_WORK
                 do_matchfile info[0],info[1]
                 
@@ -78,14 +78,14 @@ def self.update_errormodifiled(user,repo)
         
         All_repo_data_virtual.where("id=?",id).find_each do |item|
             
-            @inqueue.enq [a,item.commit]
+            @inqueue3.enq [a,item.commit]
         end
         
         
     end
     
     @thread_num.times do
-        @inqueue.enq :END_OF_WORK
+        @inqueue3.enq :END_OF_WORK
     end
        
     threads.each {|t| t.join}
@@ -93,6 +93,86 @@ def self.update_errormodifiled(user,repo)
     ActiveRecord::Base.clear_active_connections! 
     return
     
+end
+def self.init_errornum
+    @inqueue3 = SizedQueue.new(@thread_num)
+    threads=[]
+    @thread_num.times do 
+            thread = Thread.new do
+                loop do
+                info = @inqueue3.deq
+                break if info == :END_OF_WORK
+                All_repo_data_virtual_prior_merge.where("last_build_commit=? and log_error_num=0 ",info[1]).find_each do |item|
+                    puts info[0]
+                    puts item.id
+                    item.log_error_num=info[0]
+                    item.save
+                
+                end
+                
+                
+                end
+            end
+                threads << thread
+            end
+    
+            threads
+    
+end
+def self.update_errornum(user,repo)
+    ActiveRecord::Base.clear_active_connections!
+    Thread.abort_on_exception = true
+    threads=init_errornum
+    id_arry=[]
+    commit_arry=[]
+    commit_allarry=[]
+    Maven_error.where("repo_name=?","#{user}@#{repo}").group("all_repo_data_virtual_id").find_each do |info|
+        id_arry << info.all_repo_data_virtual_id
+
+    end
+    
+    for id in id_arry do
+        All_repo_data_virtual.where("id=?",id).find_each do |item|
+            
+            commit_arry<< {:id=>id,:commit=>item.commit}
+        end
+    end
+    All_repo_data_virtual_prior_merge.where("log_error_num!=0 ").find_each do |item|
+        commit_allarry<< item.last_build_commit
+    end
+    count=0
+    for item in commit_arry do
+        if commit_allarry.include? item[:commit]
+            id_arry.delete_at(count)
+        end
+        count+=1
+
+    end
+    puts id_arry.size
+    for id in id_arry do
+        a=[]
+        Maven_error.where("all_repo_data_virtual_id=?",id).find_each do |info|
+            a=a|info.error_file
+            
+        end
+        a
+        next if a.size==0
+        All_repo_data_virtual.where("id=?",id).find_each do |item|
+            
+            @inqueue3.enq [a.size,item.commit]
+        end
+        
+        
+    end
+    @thread_num.times do
+        @inqueue3.enq :END_OF_WORK
+    end
+        
+    threads.each {|t| t.join}
+    puts "errornumUpdate Over" 
+    ActiveRecord::Base.clear_active_connections! 
+    return
+
 end
 
 def self.error_type(user,repo)
@@ -117,14 +197,14 @@ def self.error_type(user,repo)
         
         All_repo_data_virtual.where("id=?",id).find_each do |item|
             
-            @inqueue.enq [a,item.commit]
+            @inqueue2.enq [a,item.commit]
         end
         
         
     end
     
     @thread_num.times do
-        @inqueue.enq :END_OF_WORK
+        @inqueue2.enq :END_OF_WORK
     end
        
     threads.each {|t| t.join}
@@ -136,14 +216,14 @@ def self.error_type(user,repo)
 end
 
 def self.init_error_type
-    @inqueue = SizedQueue.new(@thread_num)
+    @inqueue2 = SizedQueue.new(@thread_num)
     threads=[]
     @thread_num.times do 
             thread = Thread.new do
                 loop do
-                info = @inqueue.deq
+                info = @inqueue2.deq
                 break if info == :END_OF_WORK
-                All_repo_data_virtual_prior_merge.where("last_build_commit=?",info[1]).find_each do |item|
+                All_repo_data_virtual_prior_merge.where("last_build_commit=? and error_type is null ",info[1]).find_each do |item|
                         item.error_type=info[0]
                         item.save
 
@@ -158,19 +238,19 @@ def self.init_error_type
             threads    
 end
 
-def self.prev_matchfile(file_arry,filpath,last_commit=0,now_commit=0)
+def self.prev_matchfile(id,filpath,file_prev)
     
    
         modif_num=0
         
         #filpath=item.filpath-[" ","","\\n"]
-        if !file_arry.empty? and !filpath.empty?
+        if !filpath.empty? and !file_prev.empty?
             
-            for tmps in file_arry do
+            for tmps in filpath do
                 
                 
                 #puts "tmps.class:#{tmps.class}"
-                for value in filpath do
+                for value in file_prev do
                     
                     
                     #puts "value.class:#{value.class}"
@@ -184,15 +264,13 @@ def self.prev_matchfile(file_arry,filpath,last_commit=0,now_commit=0)
             end
             if modif_num>0
                 puts "=========#{modif_num}"
-                if now_commit!=0
-                    All_repo_data_virtual_prior_merge.where("last_build_commit=? and repo_name=?",commit,"#{@user}@#{@repo}").find_each do |info|
+                
+                    All_repo_data_virtual_prior_merge.where("id=?",id).find_each do |info|
 
                         info.prev_modified=modif_num
                         info.save
                     end
-                else
-                    
-                end
+                
             end
             #item.save
         end
@@ -204,16 +282,19 @@ end
 def self.init_prev_passmodified
     @inqueue = SizedQueue.new(@thread_num)
     threads=[]
-    #@thread_num.times do 
+    @thread_num.times do 
             thread = Thread.new do
                 loop do
                 info = @inqueue.deq
                 break if info == :END_OF_WORK
+                # puts "info[0] #{info[0]}"
+                # puts "info[1] #{info[1]}"
+                # puts "info[2] #{info[2]}"
                 prev_matchfile info[0],info[1],info[2]
                 
                 
                 end
-            #end
+            end
                 threads << thread
             end
     
@@ -228,61 +309,58 @@ def self.prev_passmodified(user,repo)
     @repo=repo
     threads=init_prev_passmodified 
     id_arry=[]
-    Maven_error.where("repo_name=?","#{user}@#{repo}").group("all_repo_data_virtual_id").find_each do |info|
-        id_arry << info.all_repo_data_virtual_id
-
+    commit_arry=[]
+    b=[]
+    All_repo_data_virtual_prior_merge.where("repo_name=? and last_label=0 and prev_modified=0","#{user}@#{repo}").find_each do |item|
+            commit_arry<< [item.last_build_commit,item.now_build_commit,item.id]
     end
-    
-    for id in id_arry do
-        a=[]
-        Maven_error.where("all_repo_data_virtual_id=?",id).find_each do |info|
-            a=a|info.error_file
-            
-        end
-        a
-        
-        all_repo=All_repo_data_virtual.where("id=?",id).first
-        b=[]
-        Cll_prevpassed.where("git_commit=?",all_repo.commit).find_each do |item|
-            b=b|item.filpath
-            
-            
+    for commit in commit_arry do 
+        file_info=File_path.where("last_build_commit=? and now_build_commit=?",commit[0],commit[1]).first 
+        file_info=file_info.filpath
+        Cll_prevpassed.where("git_commit=?",commit[0]).find_each do |item|
+            b=b|item.filpath   
         end
         b
-        @inqueue.enq [a,b,all_repo.commit]
-        
+        # puts "commit[2]: #{commit[2]}, #{b}, #{file_info}"
+        @inqueue.enq [commit[2],b,file_info]
     end
+    # File_path.where("repo_name=?","#{user}@#{repo}").group("all_repo_data_virtual_id").find_each do |info|
+    #     id_arry << info.all_repo_data_virtual_id
+        
+    # end
+    
+    # for id in id_arry do
+    #     a=[]
+    #     Maven_error.where("all_repo_data_virtual_id=?",id).find_each do |info|
+    #         a=a|info.error_file
+            
+    #     end
+    #     a
+        
+    #     all_repo=All_repo_data_virtual.where("id=?",id).first
+    #     b=[]
+    #     Cll_prevpassed.where("git_commit=?",all_repo.commit).find_each do |item|
+    #         b=b|item.filpath
+            
+            
+    #     end
+    #     b
+    #     @inqueue.enq [a,b,all_repo.commit]
+        
+    # end
     
     @thread_num.times do
         @inqueue.enq :END_OF_WORK
     end
        
     threads.each {|t| t.join}
-    puts "errormodifiledUpdate Over"  
+    puts "pREVPassUpdate Over"  
     return
     
 end
 #=========================================
 
-def self.init_prev_passmodified
-    @inqueue = SizedQueue.new(@thread_num)
-    threads=[]
-    #@thread_num.times do 
-            thread = Thread.new do
-                loop do
-                info = @inqueue.deq
-                break if info == :END_OF_WORK
-                prev_matchfile info[0],info[1]
-                
-                
-                end
-            #end
-                threads << thread
-            end
-    
-            threads
-    
-end
+
 
 
 def self.prev_pass_now_modified(user,repo)#前一次成功到last和last到这一次build之间的文件是否重合

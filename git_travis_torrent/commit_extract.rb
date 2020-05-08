@@ -24,22 +24,22 @@ require File.expand_path('../fix_sql.rb',__FILE__)
   $global_arry=[]
   $author_arry=[]
   $build_stats=[]
-  @thread_num=100
+  @thread_num=30
   puts "@parent_dir"
   puts @parent_dir
  
-    $token = [
-      "67d9c1839e5d323b5e5375e78c1ae1045acd4e76",#小白
-      "eff3fad7c4e987c03faa1b396836190a2cd0fda1",#双双
-      "4faaec64a3225ba0635a3bf9956d086da6851cd5",#我
-      "14bbbef635caa5f21da2b344c92d82aca9c2e6ed",#xue
-      "f853014921d9f44e2027ffc5f1d1a9430564b3a9",#麒麟
-      "60908621dd20b8db05803435d6cd6096dfcac5f5",#何川
-      "bfcc138aaed1e14c6118abf357b66bf225baf1df",#刘德卫
-      "855e1cacc1d020202fe4333c660354d5e848c7fb"#学弟
-    ]
+  $token = [
+    "3f5cd6ea063da76429c2ac7616bb4061fe94477b",#我
+    "eecd9fbfe794668811c673f252fc96a01f4e378f",#小白
+    "047a47a4f6cf125e4ef9f095c5afa6419b4bc292",#xue
+    "7d796d2bfca8ab9766dea7d0a4bcf5987609a391",#学弟
+    "dc6fa8c5a0fd1c513f13ed1e23d3323ff21fc616",
+    "0301031709c2b4ecfea9b9cd2751a38da83e6676",#wo
+  ]
   @threads_number = $token.size * 2
   $REQ_LIMIT = 4990
+  $id=0
+  
   def load_all_builds(rootdir,filename)
     f = File.join(rootdir, filename)
     unless File.exists? f
@@ -71,7 +71,7 @@ require File.expand_path('../fix_sql.rb',__FILE__)
 
 
   def is_pr?(build)
-    puts "build_id #{build[:build_id]}"
+    # puts "build_id #{build[:build_id]}"
     build[:pull_req].nil? ? false : true
   end
 
@@ -158,11 +158,12 @@ require File.expand_path('../fix_sql.rb',__FILE__)
 
       proc_out.join
     end
-    checkout_dir =File.expand_path(File.join('..','..','..','sequence', 'repository', user+'@'+ repo1),File.dirname(__FILE__)) 
+    checkout_dir =File.expand_path(File.join('..','..','sequence', 'repository', user+'@'+ repo1),File.dirname(__FILE__)) 
     #checkout_dir = File.expand_path(File.join('..', '..', '..', 'sequence', 'repository',user+'@'+'repo1'), File.dirname(__FILE__))
     
     
     begin
+      puts "checkoout_dir rugged #{checkout_dir}"
       repo = Rugged::Repository.new(checkout_dir)
       unless repo.bare?
         puts "not bare"
@@ -182,6 +183,7 @@ require File.expand_path('../fix_sql.rb',__FILE__)
     
       ActiveRecord::Base.clear_active_connections!
       if Repo_data_travi.where('repo_name=?',"#{user}@#{repo1}").count>1
+        puts "have repo_data_travis already"
         commitinfo(user,repo1)
       else
         builds = load_builds(user, repo1)
@@ -225,11 +227,13 @@ require File.expand_path('../fix_sql.rb',__FILE__)
 
   def commitinfo(user,repo1)
     if Commit_info.where('repo_name=?',"#{user}@#{repo1}").count>1
+        clonein(user,repo1)
+        puts "have commit_info already"
         found_vcommit(user,repo1)
     else
       clonein(user,repo1)
       builds = load_builds(user, repo1)
-      checkout_dir =File.expand_path(File.join('..','..','..','sequence', 'repository', user+'@'+ repo1),File.dirname(__FILE__)) 
+      checkout_dir =File.expand_path(File.join('..','..','sequence', 'repository', user+'@'+ repo1),File.dirname(__FILE__)) 
       repo = Rugged::Repository.new(checkout_dir)
       walker = Rugged::Walker.new(repo)
       walker.sorting(Rugged::SORT_DATE)
@@ -248,7 +252,7 @@ require File.expand_path('../fix_sql.rb',__FILE__)
              :message => commit.message,
              :commit_parents => commit.parent_ids,
              :committer_email => commit.committer[:email],
-             :commit_start_at => commit.time
+             :commit_started_at => commit.time
            }
           
         rescue
@@ -319,15 +323,17 @@ require File.expand_path('../fix_sql.rb',__FILE__)
       puts "#{closed_by_commit.size} PRs closed by commits"
       ActiveRecord::Base.clear_active_connections!
       #puts closed_by_commit
-      begin
+      # begin
         Commit_info.import all_commit
         puts "commit_info inserted"
         puts "Retrieving commits that were actually built (for pull requests)"
-      rescue
-        
-      ensure
+      # rescue
+      #   Commit_info.import all_commit
+      #   puts "commit_info inserted"
+      #   puts "Retrieving commits that were actually built (for pull requests)"
+      # ensure
         found_vcommit(user,repo1)
-      end
+      # end
     end
       
   end
@@ -348,79 +354,87 @@ require File.expand_path('../fix_sql.rb',__FILE__)
     mutex = Mutex.new
     @queue = SizedQueue.new(@thread_num)
         threads=[]
+        i=0
                 @thread_num.times do 
                 thread = Thread.new do
                     loop do
-                    build = @queue.deq
-                    break if build == :END_OF_WORK
-                    if is_pr?(build)
-                      if Commit_info.where("commit=?",build[:commit]).find_each.size!=0
-                        Commit_info.where("commit=?",build[:commit]).find_each do |commit_info|
-                          shas=commit_info[:message].match(/Merge (.*) into (.*)/i).captures
-                          
-                        end
-                        puts 'commit_info有'
-                        ActiveRecord::Base.clear_active_connections!
-                      else
-                        #lost_commit<< build[:commit]
-                        #hash = Hash[user: user,repo:repo1, sha: build[:commit]]
-                        #@queue.enq hash
-                      #判断是这个COMMIT是否是不存在的
-                        # if local_no_record.include? build[:commit]
-                        #   next
-                          
-                        # end
-                        puts "API find"
-                        c = ParseHtml.github_commit(@user, @repo, build[:commit],rand(0..7))
-                        unless c.empty? || c.nil?
-                          shas = c['commit']['message'].match(/Merge (.*) into (.*)/i).captures
+                    if i>=0
+                      
+                      build = @queue.deq
+                      break if build == :END_OF_WORK
+                      if is_pr?(build)
+                        k=i%($token.size)
+                        i=i+1
+                        if Commit_info.where("commit=?",build[:commit]).find_each.size!=0
+                          Commit_info.where("commit=?",build[:commit]).find_each do |commit_info|
+                            shas=commit_info[:message].match(/Merge (.*) into (.*)/i).captures
+                            
+                          end
+                          puts 'commit_info有'
+                          ActiveRecord::Base.clear_active_connections!
                         else
-                          nil
-                          puts "API-GITHUB 获取失败"
-                          mutex.lock
-                          #no_record_commit << build[:commit]
-                          write_file_add(build[:commit],@parent_dir,"no_record_commit.json")
-                          mutex.unlock
-                          #需要删掉build?
-                        end
-                        
-                      end
-                      if !shas.nil?
-                        if shas.size == 2
-                          puts "Replacing Travis commit #{build[:commit]} with actual #{shas[0]}"
-                          #build[:commit]=
-                          build[:merge_commit] = build[:commit]
-                          build[:commit]=shas[0]
-                          build[:tr_virtual_merged_into] = shas[1]
+                          #lost_commit<< build[:commit]
+                          #hash = Hash[user: user,repo:repo1, sha: build[:commit]]
+                          #@queue.enq hash
+                        #判断是这个COMMIT是否是不存在的
+                          # if local_no_record.include? build[:commit]
+                          #   next
+                            
+                          # end
+                          puts "API find"
                           
+                          c = ParseHtml.github_commit(@user, @repo, build[:commit],k)
+                          unless c.empty? || c.nil?
+                            shas = c['commit']['message'].match(/Merge (.*) into (.*)/i).captures
+                          else
+                            nil
+                            puts "API-GITHUB 获取失败"
+                            mutex.lock
+                            #no_record_commit << build[:commit]
+                            write_file_add(build[:commit],@parent_dir,"no_record_commit.json")
+                            mutex.unlock
+                            #需要删掉build?
+                          end
+                          
+                        end
+                        if !shas.nil?
+                          if shas.size == 2
+                            puts "Replacing Travis commit #{build[:commit]} with actual #{shas[0]}"
+                            #build[:commit]=
+                            build[:merge_commit] = build[:commit]
+                            build[:commit]=shas[0]
+                            build[:tr_virtual_merged_into] = shas[1]
+                            
+                            $builds << build
+                            mutex.lock
+                            
+                            write_file_add(build,@parent_dir,"repo-data-virtual-travis.json")
+                            mutex.unlock
+                          else
+                            build[:merge_commit] = nil
+                  
+                            build[:tr_virtual_merged_into] = nil
+                            $builds << build
+                          end
+                        else
+                          
+                          build[:merge_commit] = nil
+                  
+                          build[:tr_virtual_merged_into] = nil
                           $builds << build
-                          mutex.lock
-                          
-                          write_file_add(build,@parent_dir,"repo-data-virtual-travis.json")
-                          mutex.unlock
+                          next
                         end
-                      else
+                        build
                         
+                      else 
+                        #build
                         build[:merge_commit] = nil
-                
                         build[:tr_virtual_merged_into] = nil
                         $builds << build
-                        next
-                
-                
-                
                       end
-                      build
-                      
-                    else 
-                      #build
-                      build[:merge_commit] = nil
-                      build[:tr_virtual_merged_into] = nil
-                      $builds << build
-                    end
                     # puts "========="
                     # Withinproject.import builds,validate: false
-                    
+                  end
                     end
                 end
                     threads << thread
@@ -509,12 +523,14 @@ def self.init_build_state
         #repository = Travis::Repository.find(arry[0][:repo_name].sub(/@/, "/"))
         pre_commit=[]
         $id=arry[0][:id]
+        next if $id==283526
+        puts "begin id #{$id}"  
         #puts "id : #{arry[0][:id]}"
         build_stat={
           arry[0][:commit].to_sym =>  find_commits_to_prior(arry[1],arry[0],arry[0][:commit],pre_commit,0,0)
         }
-         
-        #write_file_add(build_stat,@parent_dir,"test_build_state.json")
+        puts "write file"
+        write_file_add(build_stat,@parent_dir,"test_build_state.json")
         $build_stats << build_stat
         #write_file_add(build_stat,@parent_dir,"build_state_temp.json")
         
@@ -528,20 +544,21 @@ def self.init_build_state
 end
 
   
-def build_state_threads(user,repo)
+def self.build_state_threads(user,repo)
   
   
   
   Thread.abort_on_exception = true 
   threads = init_build_state
-  
-    builds=[]
+  $build_stats=[]
+  $global_arry=[]
+  $author_arry=[]
+  builds=[]
    
     #这里需要对数据库all_repo_data_virtual去重生成no_dupall_repo_data_virtual2.json
     
     FixSql.process_dup(user,repo)
     FixSql.process_dup2(user,repo)
-    #builds = load_all_builds(@parent_dir, "all_repo-data-virtual-builds.json")
     commit_json = File.join(@parent_dir, "no_dupall_repo_data_virtual2.json")
    
 
@@ -561,24 +578,33 @@ def build_state_threads(user,repo)
       if fdir_content.size>10 
         DiffTest.test_diff(user,repo) 
       else
-        builds.each do |build|
-          #All_repo_data_virtual.where("commit=?","4a4e072446377cee77d06220af0b716c22b27dbb").find_each do |build|
-             
-             # puts "build的class#{build.class}"
-             @queue.enq [build,builds]
+        path=File.join(@parent_dir, "test_build_state.json")
+        puts path
+        if File.exists?(path)#如果前一次运行失败了，这一次就直接
+          FixSql.fix_virtual_file(@parent_dir)
+          $build_stats=load_all_builds(@parent_dir,"build_stats.json")
+        else
+          builds.each do |build|
+            #All_repo_data_virtual.where("commit=?","4a4e072446377cee77d06220af0b716c22b27dbb").find_each do |build|
+              #  puts build[:id]
+              # puts "build的class#{build.class}"
+              @queue.enq [build,builds]
+                
+                #build_stats << build_stat
+                
               
-              #build_stats << build_stat
-              
-             
           end
-          @thread_num.times do   
-          @queue.enq :END_OF_WORK
-          end
-          threads.each {|t| t.join}
-          puts "BUildStateUpdate Over"
+            @thread_num.times do   
+            @queue.enq :END_OF_WORK
+            end
+            threads.each {|t| t.join}
+            puts "BUildStateUpdate Over"
+        end
+          
           #write_file($build_stats,@parent_dir,"build_stats.json")  不写build_stats
           #FixSql.fix_virtual_file(user,repo)#将build_tmp_stats写为build_stats
           #build_stats=load_all_builds(@parent_dir, "build_stats.json")
+          puts "$build_stats :#{$build_stats.size}"
           $build_stats.each do |build_info|
             
             iterate(build_info,[],0,[])
@@ -618,7 +644,7 @@ def build_state_threads(user,repo)
            write_file(global_arry_copy,@parent_dir,filename)
            write_file(no_parent_build,@parent_dir,"no_parent_build.json")
            
-           FixSql.insert_into_temp_prior(user,repo)#增加father_id
+           FixSql.insert_into_temp_prior(@parent_dir)#增加father_id
            puts "father id added "
            
            DiffTest.test_diff(user,repo) 
@@ -631,100 +657,7 @@ def build_state_threads(user,repo)
   
   end
 
- def build_state(user,repo)
-   
-    build_stats=[]
-    builds=[]
-    i=0
-    
-    #这里需要对数据库all_repo_data_virtual去重生成no_dupall_repo_data_virtual2.json
-    
-    #builds = load_all_builds(@parent_dir, "all_repo-data-virtual-builds.json")
-    # commit_json = File.join(@parent_dir, "no_dupall_repo_data_virtual2.json")
-    
-
-    
-    # if File.exists? commit_json
-    #   builds = load_all_builds(@parent_dir, "no_dupall_repo_data_virtual2.json")
-    # else
-    #   All_repo_data_virtual.where("repo_name=? ","#{user}@#{repo}").find_each  do |info|
-       
-    #     builds << info.attributes.deep_symbolize_keys
-        
-    #   end
-    #   write_file(builds,@parent_dir,"no_dupall_repo_data_virtual2.json")
-    # end
-    Thread.abort_on_exception = true 
-    threads = init_build_state
-    builds = load_all_builds(@parent_dir, "no_dupall_repo_data_virtual2.json")
-   
-    All_repo_data_virtual.where("repo_name=? and id=270866","#{user}@#{repo}").find_each do |build|
-    
-    #All_repo_data_virtual.where("commit=?","4a4e072446377cee77d06220af0b716c22b27dbb").find_each do |build|
-       
-       # puts "build的class#{build.class}"
-        @queue.enq [build,builds]
-        # pre_commit=[]
-        # build_stat={
-        #   build[:commit].to_sym =>  find_commits_to_prior(builds,build,build[:commit],pre_commit,0,0)
-        # }
-         
-        #write_file_add(build_stat,@parent_dir,"test_build_state.json")
-        #write_file_add(build_stat,@parent_dir,"build_state_temp.json")
-        #build_stats << build_stat
-        
-       
-    end
-    @thread_num.times do   
-      @queue.enq :END_OF_WORK
-      end
-      threads.each {|t| t.join}
-      puts "BUildStateUpdate Over"
-    #puts build_stats
-    #FixSql.fix_virtual_file(user,repo)
-    
-    # build_stats=load_all_builds(@parent_dir, "build_stats.json")
-    # build_stats.each do |build_info|
-    #   puts "global_arry"
-    #   iterate(build_info,[],0,[])
-    # end
-   
-    # #write_file(build_stats,@parent_dir,"build_stats.json")
-    # #write_file(@local_miss_commit,@parent_dir,"local_miss_commit.json")
-    
-    # puts "global_arry"
-    # #puts $global_arry
-    # puts $author_arry
-    # write_file($global_arry,@parent_dir,"global_arry.json")
-    # write_file($author_arry,@parent_dir,"author_arry.json")
-
-    # for i in (0..global_arry.size-1)
-    #   $global_arry[i]=$global_arry[i].merge($author_arry[i])
-    # end
-    # write_file($global_arry,@parent_dir,"complete_global.json")
-    
-    #  $global_arry.reject{|arry| arry.nil?}
-    #  write_file($global_arry,@parent_dir,"global_arry.json")
-    # #f = File.join("git_travis_torrent/build_logs", "#{user}@#{repos}")
-    #  filename="all_repo_virtual_prior_mergeinfo.json"
-    #  global_arry_copy=$global_arry.dup
-    #  $global_arry=$global_arry.map do |b|
-    #  if not builds.find { |bs| bs[:commit] == b[:last_build_commit]  }.nil? 
-    #     b=b.merge(builds.find { |bs| bs[:commit] == b[:last_build_commit]})
-    #  else
-    #     no_parent_build << b[:now_build_commit]
-    #  end
-    #  b
-    #  end
-    #  puts $global_arry
-    #  write_file($global_arry,f,filename)
-    #  FixSql.insert_into_temp_prior(user,repo)
-
-    #  Diff_test.test_diff(user,repo1)
-     
-    
-  end
-
+ 
   def iterate(h,key_val,flag,z)
     if h.is_a?(Hash)
       h.each do |k,v|
@@ -760,10 +693,10 @@ def build_state_threads(user,repo)
     elsif h.is_a?(Array)
       if h[0].is_a?(String)|| h[0].is_a?(Numeric) 
         temp=key_val.pop
-        #puts "ary_key: #{temp} arry_value:#{h}"
-        #puts temp.class
+        # puts "ary_key: #{temp} arry_value:#{h}"
+        # puts temp.class
         if temp==:commits
-          #puts "找到arry"
+          
           #puts "key_val.class:#{key_val.class}"
           #puts "key_val.class:#{key_val[0].class}"
           commit_list={
@@ -988,8 +921,8 @@ def find_commits_to_prior(builds,build,sha,prev_commits,flag,count)
    #puts @user
    #如果往前找的次数太多,就放弃
    
-   puts $id
-   if count>10
+   puts "id:#{$id}"
+   if count>13
     puts "往前找的次数太多,放弃1"
     return nil
    end
@@ -1008,7 +941,7 @@ def find_commits_to_prior(builds,build,sha,prev_commits,flag,count)
       puts "no record include sha"
       return nil
     else
-      c=ParseHtml.github_commit(@user,@repo,sha,rand(0..7))
+      c=ParseHtml.github_commit(@user,@repo,sha,rand(0..3))
     end
    
   end
@@ -1064,6 +997,7 @@ def find_commits_to_prior(builds,build,sha,prev_commits,flag,count)
                 end
                 #puts "build_commit本身是一个merge,两个parents"
                 acc << find_commits_to_prior(builds,build,shas,prev_commits,1,count)
+                
               end
               return acc
             
@@ -1148,7 +1082,7 @@ def find_commits_to_prior(builds,build,sha,prev_commits,flag,count)
           #puts "prev_commits2 #{prev_commits}"
           break
         end
-        if  i==walker.count or i>100 
+        if  i==walker.count or i>13
           puts "往前找的次数太多,放弃2"
           #puts"已经找到第一次commit,无法继续"
           return nil
@@ -1388,7 +1322,8 @@ def method_name
     
     @parent_dir = File.join('build_logs/',  "#{@user}@#{@repo}")
     
-    if i>=0
+    if i>=6
+      ActiveRecord::Base.clear_active_connections!
       process(@user,@repo)
       #commitinfo(@user,@repo)
       #found_vcommit(@user,@repo)

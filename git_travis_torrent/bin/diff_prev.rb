@@ -21,23 +21,23 @@ require File.expand_path('../../lib/cll_prevpass.rb',__FILE__)
 
 require File.expand_path('../parse_html.rb',__FILE__)
 #require File.expand_path('../../fix_sql.rb',__FILE__)
-@user=ARGV[0]
-@repo=ARGV[1]
-@out_queue = SizedQueue.new(2000)
-$token = [
-  "67d9c1839e5d323b5e5375e78c1ae1045acd4e76",#小白
-  "eff3fad7c4e987c03faa1b396836190a2cd0fda1",#双双
-  "4faaec64a3225ba0635a3bf9956d086da6851cd5",#我
-  "14bbbef635caa5f21da2b344c92d82aca9c2e6ed",#xue
-  "f853014921d9f44e2027ffc5f1d1a9430564b3a9",#麒麟
-  "60908621dd20b8db05803435d6cd6096dfcac5f5",#何川
-  "bfcc138aaed1e14c6118abf357b66bf225baf1df",#刘德卫
-  "855e1cacc1d020202fe4333c660354d5e848c7fb"#学弟
-]
+
+
+
 $REQ_LIMIT = 4990
 $text_file=["md","doc","docx","txt","csv","json","xlsx","xls","pdf","jpg","ico","png","jpeg","ppt","pptx","tiff","swf"]
-$thread_number=40
+$thread_num=20
 module DiffPrev
+  @token = [
+    # "623f6c239d614b0c12ed94642815efe39a69d59b",#bad
+    "e7ee74749713821a882af6955212ca5926df2889",#bad
+    "1e2e6a896a4f081f6cbf8e99003980d36a01153f",#xue
+    # "4d37d731bc445de2421f4fbe7bf8ff772ce9af0b",
+    "38dbc6ce08b536f86b226afa533e8198f03ccf11",
+    "43d40a4f7e730416d7642b727c75674e7b39241b",
+    "fbc83d122891cb443b1c5c02cdfd491cd6d8e042"
+   
+  ]
     def self.test_diff(user,repo,last_pass,now_build,lef,type)
         @user=user
         @repo=repo
@@ -116,7 +116,8 @@ module DiffPrev
             end
             #puts build[:build_id]
             if type=='cll'
-                acc={:repo_name=>@user+'@'+@repo,:git_commit=>now_build,:prev_passcommit=>lastpass,:filpath=>temp_filepath}
+                today = Time.new
+                acc={:repo_name=>@user+'@'+@repo,:git_commit=>now_build,:prev_passcommit=>lastpass,:filpath=>temp_filepath,:insert_time=>today.strftime("%Y-%m-%d %H:%M:%S")}
                 filepaths=Cll_prevpassed.new(acc)
                 filepaths.save
             end
@@ -129,16 +130,23 @@ module DiffPrev
             end
             
         rescue => exception
-            c=git_compare(now_build,lastpass,user,repo,rand(0..7))
+          i=0
+           if i>=0
+            k=i % (@token.size)
+            i=i+1
+            c=git_compare(now_build,lastpass,user,repo,k)
             unless c.empty?
-                puts "处理diff"
+                
                 if lef!=0
+                  puts "处理diff"
                   diff_compare(c,now_build,lastpass,lef,type)
+                 
                 # else
                 #   diff_compare(c,build,0)
                 end
                 
             end
+          end
         end
             
         
@@ -171,17 +179,17 @@ module DiffPrev
         
     
         url = "https://api.github.com/repos/#{owner}/#{repo}/compare/#{last}...#{now}"
-        puts "Requesting #{url} (#{@remaining} remaining)"
+        puts"#{@remaining} remaining"
     
         contents = nil
         begin
           puts "begin"
           
-          r = open(url, 'User-Agent' => 'ghtorrent', 'Authorization' => "token #{$token[num]}")
+          r = open(url, 'User-Agent' => 'ghtorrent', 'Authorization' => "token #{@token[num]}")
           
           @remaining = r.meta['x-ratelimit-remaining'].to_i
           puts "@remaining"
-          puts @remaining
+          puts "Requesting #{url} (#{@remaining} remaining)"
           @reset = r.meta['x-ratelimit-reset'].to_i
           contents = r.read
           JSON.parse contents
@@ -189,29 +197,26 @@ module DiffPrev
           @remaining = e.io.meta['x-ratelimit-remaining'].to_i
           @reset = e.io.meta['x-ratelimit-reset'].to_i
           puts  "Cannot get #{url}. Error #{e.io.status[0].to_i}"
-          puts @remaining
-          puts $token[num]
+          puts "#{@remaining }===#{@token[num]} "
+          
           {}
         rescue StandardError => e
           puts "Cannot get #{url}. General error: #{e.message}"
-          puts $token[num]
+          puts @token[num]
           {}
         ensure
           File.open(commit_json, 'w') do |f|
             f.write contents unless r.nil?
-            if r.nil? and 5000 - @remaining >= 6
-              puts "xxxxx"
-              git_compare(now, last, owner,repo,rand(0..7))
-            end
+            f.write '' if r.nil?
             
           
           end
     
           if 5000 - @remaining >= $REQ_LIMIT
             to_sleep = 500
-            puts $token[num]
+            puts @token[num]
             puts "Request limit reached, sleeping for #{to_sleep} secs"
-            if num!=7
+            if num!=@token.size-1
               num+=1
             else
               num=0
@@ -246,8 +251,8 @@ module DiffPrev
       
       
       if type=='cll'
-      
-        acc={:repo_name=>@user+'@'+@repo,:git_commit=>build,:prev_passcommit=>lastpass,:filpath=>temp_filepath}
+        today=Time.new
+        acc={:repo_name=>@user+'@'+@repo,:git_commit=>build,:prev_passcommit=>lastpass,:filpath=>temp_filepath,:insert_time=>today.strftime("%Y-%m-%d %H:%M:%S")}
         filepaths=Cll_prevpassed.new(acc)
         filepaths.save
       
@@ -263,3 +268,37 @@ module DiffPrev
     
     
 end
+
+# @token = [
+#   # "623f6c239d614b0c12ed94642815efe39a69d59b",#bad
+#   "e7ee74749713821a882af6955212ca5926df2889",#bad
+#   "1e2e6a896a4f081f6cbf8e99003980d36a01153f",#xue
+#   "4d37d731bc445de2421f4fbe7bf8ff772ce9af0b",
+#   "38dbc6ce08b536f86b226afa533e8198f03ccf11",
+#   "43d40a4f7e730416d7642b727c75674e7b39241b",
+#   "fbc83d122891cb443b1c5c02cdfd491cd6d8e042"
+ 
+# ]
+# last='b9ca75e9b26f7337196e33bc5162bdf852b234fc'
+# now='00394069d03459b919ee7d0c71075cd7e1f23aac'
+# url = "https://api.github.com/repos/jOOQ/jOOQ/compare/#{last}...#{now}"
+        
+    
+# contents = nil
+#   p @token.size
+#   puts "begin"
+#   num=0
+#   for m in (0..@token.size) do
+#     i=num% @token.size
+#     num+=1
+
+#     puts "=====#{i}"
+#   r = open(url, 'User-Agent' => 'ghtorrent', 'Authorization' => "token #{@token[i]}")
+  
+#   @remaining = r.meta['x-ratelimit-remaining'].to_i
+#   puts "@remaining"
+#   puts "Requesting #{url} (#{@remaining} remaining)"
+#   @reset = r.meta['x-ratelimit-reset'].to_i
+#   contents = r.read
+#   JSON.parse contents
+#   end

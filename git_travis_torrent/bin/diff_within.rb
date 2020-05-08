@@ -23,14 +23,12 @@ require File.expand_path('../parse_html.rb',__FILE__)
 @repo=ARGV[1]
 @out_queue = SizedQueue.new(2000)
 $token = [
-  "67d9c1839e5d323b5e5375e78c1ae1045acd4e76",#小白
-  "eff3fad7c4e987c03faa1b396836190a2cd0fda1",#双双
-  "4faaec64a3225ba0635a3bf9956d086da6851cd5",#我
-  "14bbbef635caa5f21da2b344c92d82aca9c2e6ed",#xue
-  "f853014921d9f44e2027ffc5f1d1a9430564b3a9",#麒麟
-  "60908621dd20b8db05803435d6cd6096dfcac5f5",#何川
-  "bfcc138aaed1e14c6118abf357b66bf225baf1df",#刘德卫
-  "855e1cacc1d020202fe4333c660354d5e848c7fb"#学弟
+  "3f5cd6ea063da76429c2ac7616bb4061fe94477b",#我
+  "eecd9fbfe794668811c673f252fc96a01f4e378f",#小白
+  "047a47a4f6cf125e4ef9f095c5afa6419b4bc292",#xue
+  "7d796d2bfca8ab9766dea7d0a4bcf5987609a391",#学弟
+  "dc6fa8c5a0fd1c513f13ed1e23d3323ff21fc616",
+  "0301031709c2b4ecfea9b9cd2751a38da83e6676",#wo
 ]
 $REQ_LIMIT = 4990
 $text_file=["md","doc","docx","txt","csv","json","xlsx","xls","pdf","jpg","ico","png","jpeg","ppt","pptx","tiff","swf"]

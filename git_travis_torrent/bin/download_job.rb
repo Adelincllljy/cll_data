@@ -23,7 +23,8 @@ module DownloadJobs
       else
 #         open(job_log_url,'Travis-API-Version'=>'3','Authorization'=>'token 
 # xukZXnxq2DWJOJU4ETvQ5A','Accept'=> 'text/plain',:allow_redirections => :all) { |o| f = o.read }
-      open(job_log_url,'Content-Type'=>'text/plain','Accept'=> 'text/plain',:allow_redirections => :all) { |o| f = o.read }
+        puts"reopen #{job_log_url}"
+        open(job_log_url,'Content-Type'=>'text/plain','Accept'=> 'text/plain',:allow_redirections => :all) { |o| f = o.read }
       end
     rescue => e
       puts "Retrying, #{count} times fail to download job log #{job_log_url}: #{e.message}"
@@ -73,7 +74,7 @@ module DownloadJobs
 def self.job_logs(path,job_id)
   
     #name = File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', 'google@guava', '1000@1.log'), File.dirname(__FILE__))
-    unless File.exists?(path) and File.size(path) > 5
+    unless (File.exists?(path) and File.size(path) > 5)
     puts "downliad-"
     
     download_job(job_id,path)
@@ -110,17 +111,10 @@ end
 
 
 
-  path = File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', 'UniversalMediaServer@UniversalMediaServer', 'test@1.log'), File.dirname(__FILE__))
-# #  path=File.expand_path(File.join('..', 'logs', '1000@1.log'), File.dirname(__FILE__))
-# #  puts path
-  # file_array = IO.readlines(path)
-  # puts file_array.size
-  # unless  File.exists?(path) and File.size(path) > 5 #
-  
-  # job_id=551542349
-
-
-  # DownloadJobs.job_logs(path,job_id)
+  # path = File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', 'UniversalMediaServer@UniversalMediaServer', 'test@1.log'), File.dirname(__FILE__))
+  # dir_path=File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', 'l0rdn1kk0n@wicket-bootstrap'), File.dirname(__FILE__))
+  # if !File.directory?(dir_path)
+  #     FileUtils::mkdir_p(dir_path)
   # end
-  
+
 

@@ -12,12 +12,17 @@ require File.expand_path('../download_job.rb',__FILE__)
 require File.expand_path('../diff_within.rb',__FILE__)
 require File.expand_path('../diff_test.rb',__FILE__)
 require File.expand_path('../diff_prev.rb',__FILE__)
-
+require File.expand_path('../../lib/travistorrents.rb',__FILE__)
+require File.expand_path('../../lib/travis_alldatas.rb',__FILE__)
+require File.expand_path('../../lib/travis_82_alldata.rb',__FILE__)
+require File.expand_path('../../lib/travis201701.rb',__FILE__)
+require File.expand_path('../../lib/travis_1027_alldatas.rb',__FILE__)
 require File.expand_path('../../lib/all_repo_data_virtual_prior_merge.rb',__FILE__) 
+require File.expand_path('../../lib/all_repo_data_virtual.rb',__FILE__) 
 require 'activerecord-import'
 require 'thread'
 class PrevPass
-    @thread_num=20 
+    @thread_num=30
     def initialize
         
     end
@@ -56,29 +61,112 @@ class PrevPass
             if root.name!=leaf.name#处理叶子节点和跟节点一样的情况,防止无线循环
                 # puts "处理leaf"
                 unless leaf.content.nil? 
-                    if leaf.content.last==1
+                    if leaf.content["flag"]==1
                         # puts "已经找到前一次pass"
                         next
                     end
-                    if leaf.content.first.status=='passed'
+                    if leaf.content["content"].status=='passed' 
                         flag=1
-                        leaf.content << flag
+                        leaf.content["flag"] = flag
                         next
+                    elsif  leaf.content["content"].status=='canceled' and leaf.content["cancel"]=1
+                        flag=1
+                        leaf.content["flag"] = flag
+                        next
+
                     else
                         
-                        if leaf.content.last!=0
+                        if leaf.content["flag"]!=0
                             # puts"叶子还是fail"
-                            leaf.content << flag 
+                            leaf.content["flag"]= flag 
                         end 
-                        batchs=All_repo_data_virtual_prior_merge.where("build_id<? and repo_name=?",leaf.content.first.build_id,leaf.content.first.repo_name).all
-                        # puts "batchs"
-                        if batchs.where("now_build_commit=? and repo_name=?",leaf.name,leaf.content.first.repo_name).count>0
-                            recurflag=1
-                            batchs.where("now_build_commit=? and repo_name=?",leaf.name,leaf.content.first.repo_name).group("last_build_commit").find_each do |all_repo|
-                                    
+                        repo_flag=0
+                        begin
+                            batchs=All_repo_data_virtual_prior_merge.where("build_id<? and repo_name=?",leaf.content["content"].build_id,leaf.content["content"].repo_name).all
+                        
                             
-                                leaf << Tree::TreeNode.new(all_repo.last_build_commit,[all_repo] )
+                        rescue => exception
+                            batchs=All_repo_data_virtual_prior_merge.where("build_id<? and repo_name=?",leaf.content["content"].tr_build_id,leaf.content["content"].gh_project_name.gsub("/","@")).all
+                            repo_flag=1
+                        end
+                        # puts "batchs"
+                        if repo_flag==0
+                            repo_namem=leaf.content["content"].repo_name
+                        else
+                            repo_namem=leaf.content["content"].gh_project_name.gsub("/","@")
+                        end
+
+                        if batchs.where("now_build_commit=? and repo_name=?",leaf.name,repo_namem).count>0
+                            recurflag=1
+                            batchs.where("now_build_commit=? and repo_name=?",leaf.name,repo_namem).group("last_build_commit").find_each do |all_repo|
+                                    
+                                contents=leaf.content
+                                contents["depth"]=contents["depth"]+1
+                                contents["content"]=all_repo
+                                leaf << Tree::TreeNode.new(all_repo.last_build_commit,contents )
                                 #puts "all_repo.last_build_commit #{all_repo.last_build_commit}"   
+                            end
+                        else
+                            bach=Travistorrent_822017_alldatas.where("git_trigger_commit=?",leaf.name).all
+                            if bach.count!=0
+                                recurflag=1
+                                contents=leaf.content
+                                contents["depth"]=contents["depth"]+1
+                                contents["content"]=bach.first
+                                leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,contents )
+                                    # leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,[bach.first] )
+                                
+
+                            else
+                                batchs=Travistorrent_11_1_2017datas.where("gh_project_name=?",repo_namem.gsub("@","/"))
+                                bach=batchs.where("git_trigger_commit=?",leaf.name)
+                                if bach.count!=0
+                                    recurflag=1
+                                    contents=leaf.content
+                                    contents["depth"]=contents["depth"]+1
+                                    contents["content"]=bach.first
+                                    leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,contents )
+                                        # leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,[bach.first] )
+                                    
+    
+                                else
+                                    bach=Travistorrent_1027_alldatas.where("git_commit=?",leaf.name)
+                                    if bach.count!=0
+                                        recurflag=1
+                                        contents=leaf.content
+                                        contents["depth"]=contents["depth"]+1
+                                        contents["content"]=bach.first
+                                        leaf << Tree::TreeNode.new(bach.first.git_commits.split('#').last,contents )
+                                            # leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,[bach.first] )
+                                        
+        
+                                    else
+                                        bach=Travistorrent_alldatas.where("git_trigger_commit=?",leaf.name)
+                                        if bach.count!=0
+                                            recurflag=1
+
+                                            contents=leaf.content
+                                            contents["depth"]=contents["depth"]+1
+                                            contents["content"]=bach.first
+                                            leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,contents )
+                                                # leaf << Tree::TreeNode.new(bach.first.git_prev_built_commit,[bach.first] )
+                                        else 
+                                            bach=All_repo_data_virtual.where("commit=?",leaf.name).first
+                                            if !bach.nil?
+                                                if bach.status=='canceled'
+                                                    leaf.content["cancel"]=1
+
+                                                end
+                                            
+                                            end
+                                            
+                                        end
+                                    end
+                                end
+
+
+
+
                             end
                         
                         end
@@ -110,11 +198,16 @@ class PrevPass
         # puts "放入数据库"
         # sleep 20000
         leaf_arry=[]
+        depth_arry=[]
+        cancel_flags=[]
         root.each_leaf do |leaf|
             
             unless leaf.content.nil?
-                if leaf.content.last==1 
-                    leaf_arry << leaf.name    
+                if leaf.content["flag"]==1
+                    puts  leaf.name
+                    leaf_arry << leaf.name
+                    depth_arry << leaf.content["depth"]  
+                    cancel_flags<< leaf.content["cancel"]  
                 end
                 
             end
@@ -127,7 +220,7 @@ class PrevPass
                        # @inqueue.enq [@user,@repo,last_pass,root.name,2]
                        
                        cll_prevpasscommits
-                        DiffPrev.test_diff(@user,@repo,leaf_arry,root.name,2,type)
+                       DiffPrev.test_diff(@user,@repo,leaf_arry,root.name,2,type)
 
                     # end
                 else
@@ -145,7 +238,8 @@ class PrevPass
                         # mutex = Mutex.new
                         # mutex.lock
                         if !(leaf_arry.empty? or leaf_arry.nil?)
-                            acc={:repo_name=>@user+'@'+@repo,:git_commit=>root.name,:prev_passcommits=>leaf_arry}
+                            today = Time.new; 
+                            acc={:repo_name=>@user+'@'+@repo,:git_commit=>root.name,:prev_passcommits=>leaf_arry,:gap_num=>depth_arry,:cancel_flag=>cancel_flags,:insert_time=>today.strftime("%Y-%m-%d %H:%M:%S")}
                             record=Cll_prevpasscommit.new(acc)
                             record.save
                              #ActiveRecord::Base.clear_active_connections!
@@ -182,11 +276,11 @@ class PrevPass
                     #     end
                     # else
                         
-                    #     if Cll_prevpasscommit.where("git_commit=?",info[0]).count>0
-                    #         puts "next"
-                    #         next
-                            
-                    #     end
+                    if info[0]=='6049916365f3260a27f767ecba1cd1833e99cc8c'
+                        
+                        next
+                        
+                    end
                     # end
                     #@thread_num.times do 
                     #mutex.lock
@@ -195,18 +289,19 @@ class PrevPass
                         #info.pre_builtcommit
                         #puts "all_rpeo.id#{all_repo.id}"
                         #puts "all_repo.last_build_commit #{all_repo.last_build_commit}"
-                        root_node << Tree::TreeNode.new(all_repo.last_build_commit,[all_repo])
+                        root_node <<  Tree::TreeNode.new(all_repo.last_build_commit,{"content"=>all_repo,"depth"=>0,"flag"=>0,"cancel"=>0})
                         
                     end
                     
                        #@queue2.enq [root_node,info[1]]
                     #root_node.print_tree
                     #puts root_node
+                    puts info[0]
                     find_last_pass(root_node,info[1])
                     #mutex.unlock
                     
                     
-                    # puts "========="
+                    
                     # Withinproject.import builds,validate: false
                     
                     end
@@ -223,6 +318,7 @@ class PrevPass
         #ActiveRecord::Base.clear_active_connections!
         @user=user
         @repo=repo
+        puts "find_prevpass"
         Thread.abort_on_exception = true
         all_repo_data_virtualarry=[]
         cll_prevpassarry=[]
@@ -231,9 +327,11 @@ class PrevPass
             all_repo_data_virtualarry<< info.commit
         #Withinproject.where("pre_builtcommit=?","f20692facf4c00bcafc26908fb51bde98ab45562").find_each do |info|
         end
+        all_repo_data_virtualarry.uniq!
         Cll_prevpasscommit.where("repo_name=?","#{user}@#{repo}").find_each do |item|
             cll_prevpassarry << item.git_commit
         end
+        cll_prevpassarry.uniq!
         tmp=all_repo_data_virtualarry-cll_prevpassarry
         puts "tmp #{tmp.size}"
         threads = init_prev_pass
@@ -256,28 +354,43 @@ class PrevPass
     def self.prev_diff(user,repo)
         @user=user
         @repo=repo
+        puts "diff_started"
         Thread.abort_on_exception = true
         threads = init_prevdiff
-        Cll_prevpasscommit.where("repo_name=?","#{user}@#{repo}").find_all do |info|
-            @inqueue.enq info
+        cll_prevpassed_arry=[]
+        cll_prevpasscommit_arry=[]
+        Cll_prevpassed.where("repo_name=?","#{user}@#{repo}").find_each do |info|
+            cll_prevpassed_arry << info.git_commit
+        end
 
+        Cll_prevpasscommit.where("repo_name=?","#{user}@#{repo}").find_all do |info|
+            cll_prevpasscommit_arry << info.git_commit
+
+        end
+        cll_prevpasscommit_arry.uniq!
+        cll_prevpassed_arry.uniq!
+        left_commit=cll_prevpasscommit_arry-cll_prevpassed_arry
+        for item in left_commit
+            Cll_prevpasscommit.where("git_commit=?",item).find_each do |info|
+                @inqueue.enq info
+            end
         end
         @thread_num.times do   
             @inqueue.enq :END_OF_WORK
-            end
+        end
             threads.each {|t| t.join}
             #threads.each {|t| puts t.status}
-            puts "PathUpdate Over"
-            ActiveRecord::Base.clear_active_connections!
-            #ActiveRecord::Base.connection.close
-            #threads.each {|t| puts t.status}
-            return
+        puts "PathUpdate Over"
+        ActiveRecord::Base.clear_active_connections!
+        #ActiveRecord::Base.connection.close
+        #threads.each {|t| puts t.status}
+        return
     end
      
     def self.init_prevdiff
         @inqueue=SizedQueue.new(@thread_num)
         threads=[]
-        #@thread_num.times do 
+        @thread_num.times do 
           thread = Thread.new do
             loop do
               info = @inqueue.deq
@@ -288,7 +401,7 @@ class PrevPass
               DiffPrev.test_diff(@user,@repo,info.prev_passcommits,info.git_commit,2,'cll')
              
               
-            #end
+            end
           end
           threads << thread
         end
@@ -319,7 +432,7 @@ class PrevPass
         return
         
     end   
-    def self.run(flag)
+    def self.run()
         parent_dir = File.expand_path('../../repo_name.txt',__FILE__)
         repo_name=IO.readlines(parent_dir)
         i=0
@@ -333,13 +446,12 @@ class PrevPass
             # process(line.split('/').first,line.split('/').last)
             #commitinfo(@user,@repo)
             ActiveRecord::Base.clear_active_connections!
-            if i >=11
-                if flag=='within'
-                PrevPass.prev_pass(line)
-                else
+            if i >=12
+               
                 PrevPass.cll_prevpass(@user,@repo)
+                PrevPass.prev_diff(@user,@repo)
                 #build_state_threads(line.split('/').first,line.split('/').last)
-                end
+               
                 i+=1
             else
                 i+=1
@@ -351,4 +463,4 @@ class PrevPass
     end
 end
 
-#PrevPass.run('within')
+PrevPass.run()

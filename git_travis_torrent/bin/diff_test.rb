@@ -19,14 +19,12 @@ require File.expand_path('../parse_html.rb',__FILE__)
 # @repo=ARGV[1]
 @out_queue = SizedQueue.new(2000)
 $token = [
-  "67d9c1839e5d323b5e5375e78c1ae1045acd4e76",#小白
-  "eff3fad7c4e987c03faa1b396836190a2cd0fda1",#双双
-  "4faaec64a3225ba0635a3bf9956d086da6851cd5",#我
-  "14bbbef635caa5f21da2b344c92d82aca9c2e6ed",#xue
-  "f853014921d9f44e2027ffc5f1d1a9430564b3a9",#麒麟
-  "60908621dd20b8db05803435d6cd6096dfcac5f5",#何川
-  "bfcc138aaed1e14c6118abf357b66bf225baf1df",#刘德卫
-  "855e1cacc1d020202fe4333c660354d5e848c7fb"#学弟
+  "3f5cd6ea063da76429c2ac7616bb4061fe94477b",#我
+  "eecd9fbfe794668811c673f252fc96a01f4e378f",#小白
+  "047a47a4f6cf125e4ef9f095c5afa6419b4bc292",#xue
+  "7d796d2bfca8ab9766dea7d0a4bcf5987609a391",#学弟
+  "dc6fa8c5a0fd1c513f13ed1e23d3323ff21fc616",
+  "0301031709c2b4ecfea9b9cd2751a38da83e6676",#wo
 ]
 $REQ_LIMIT = 4990
 $text_file=["md","doc","docx","txt","csv","json","xlsx","xls","pdf","jpg","ico","png","jpeg","ppt","pptx","tiff","swf"]
@@ -73,9 +71,25 @@ module DiffTest
           @queue.enq [build,user,repo,nowcommit,lef]
         end
       end
-    else
-      for lapass in lastpass
-        @queue.enq [lastpass,user,repo,nowcommit,lef]
+    else#fix_build调用
+      builds = fixbuild_load_builds(user, repo,"all_repo_virtual_prior_mergeinfo_father_id.json")
+      arry=[]
+
+      builds=builds.uniq
+      #repos = Rugged::Repository.new("repos/#{user}/#{repo}")
+      #repo = Rugged::Repository.new("git_travis_torrent/repos/threerings/tripleplay")
+      #builds.map do|build|
+      
+        
+      filepath={}
+      build_compare=[]
+      Thread.abort_on_exception = true
+      threads = init_diff_start
+      for build in builds
+        build[:repo_name]="#{user}@#{repo}"
+        if build.has_key?(:build_id)
+          @queue.enq [build,user,repo,nowcommit,0]
+        end
       end
     end
     $thread_number.times do   
@@ -87,23 +101,7 @@ module DiffTest
       #for build in builds
   end 
 
- def fix_diff(user,repo)
-  repo_name=user+"@"+repo
-  Thread.abort_on_exception = true
-      threads = init_diff_start
-  All_repo_data_virtual_prior_merge.where("repo_name=?",repo_name).find_each do |build|
-    @queue.enq [build,user,repo,0,0]
-    
 
-  end
-  $thread_number.times do   
-    @queue.enq :END_OF_WORK
-    end
-    threads.each {|t| t.join}
-    puts "DiffUpdate Over"
-
- end
-      
  def  self.init_diff_start
   @queue=SizedQueue.new($thread_number)
   threads=[]
@@ -298,6 +296,9 @@ module DiffTest
         
         #x={build[:build_id]=>{"filpath".to_sym=>temp_filepath,"src_path".to_sym=>src_arry}}
         if info[4]==0
+          today = Time.new
+
+      
           
           file_paths=File_path.new
           file_paths.repo_name=build[:repo_name]
@@ -307,6 +308,7 @@ module DiffTest
           file_paths.now_build_commit=build[:now_build_commit]
           file_paths.filpath=temp_filepath
           file_paths.src_path=src_arry
+          file_paths.insert_time=today.strftime("%Y-%m-%d %H:%M:%S")
           file_paths.save
           
           #ActiveRecord::Base.clear_active_connections!
@@ -330,7 +332,7 @@ module DiffTest
     
           build[:file_added]=file_added
           build[:file_deleted]=file_deleted
-          
+          build[:insert_time]=today.strftime("%Y-%m-%d %H:%M:%S")
           #build[:txt_file]=txt_file
           acc={:test_file=>test_num,:src_file=>src_num ,:txt_file=>txt_num,:config_file =>config_num,:src_churn=>src_churn,:test_churn=>test_churn}
           build=build.merge(acc)
@@ -351,7 +353,7 @@ module DiffTest
           #puts "处理需要远程话获取diff信息的compare"
           if info[4]==0
           #build_compare << build[:now_build_commit]
-            c=git_compare(build[:now_build_commit],build[:last_build_commit],info[1],info[2],rand(0..7))
+            c=git_compare(build[:now_build_commit],build[:last_build_commit],info[1],info[2],rand($token.size))
             unless c.empty?
               #puts "处理diff"
               diff_compare(c,build,0,info[4])
@@ -360,7 +362,7 @@ module DiffTest
             end
         
           else
-            c=git_compare(info[3],info[0],info[1],info[2],rand(0..7))
+            c=git_compare(info[3],info[0],info[1],info[2],rand(0..4))
             unless c.empty?
               puts "处理diff"
               diff_compare(c,0,info[4])
@@ -435,7 +437,14 @@ module DiffTest
     
     JSON.parse File.open(f).read, :symbolize_names => true#return symbols
   end
-
+  def self.fixbuild_load_builds(owner, repo,filename)
+    f = File.join("fix_build_logs", "#{owner}@#{repo}", filename)
+    unless File.exists? f
+      puts "不能找到"
+    end
+    
+    JSON.parse File.open(f).read, :symbolize_names => true#return symbols
+  end
 
   def self.git_compare(now,last,owner,repo,num)
       parent_dir = File.join('compare', "#{owner}@#{repo}")
@@ -617,7 +626,7 @@ def self.diff_compare(compare_json,build=0,flag,lef)
  # puts build[:build_id]
  if flag==0 and lef==0
   
-  
+  today = Time.new 
   
   # acc={:tests_added => test_added, :tests_deleted => test_deleted ,:test_file=>test_num, 
   # :src_file=>src_num ,:txt_file=>txt_num,:cofig_file =>config_num,:build_id=>build[:build_id],:last_build_commit=>build[:last_build_commit],
@@ -628,8 +637,10 @@ def self.diff_compare(compare_json,build=0,flag,lef)
    #ActiveRecord::Base.clear_active_connections!
   
   #x={build[:build_id]=>{"filpath".to_sym=>temp_filepath,"src_path".to_sym=>src_arry}}
-  
+   begin
+    
     file_paths=File_path.new
+    file_paths.insert_time=today.strftime("%Y-%m-%d %H:%M:%S")
     file_paths.repo_name=build[:repo_name]
     file_paths.build_id=build[:build_id]
     file_paths.father_id=build[:father_id]
@@ -638,10 +649,15 @@ def self.diff_compare(compare_json,build=0,flag,lef)
     file_paths.filpath=temp_filepath
     file_paths.src_path=src_arry
     file_paths.save
-    build.delete(:id)
-    build.delete(:jobs_arry)
-    build.delete(:jobs_state)
-    build[:commit_size]=build[:commit_list].size
+     
+   rescue => exception
+     
+   end
+    begin
+      build.delete(:id)
+      build.delete(:jobs_arry)
+      build.delete(:jobs_state)
+      build[:commit_size]=build[:commit_list].size
     if build[:status]=="passed"
       build[:last_label]=1
     else
@@ -661,12 +677,16 @@ def self.diff_compare(compare_json,build=0,flag,lef)
     build[:file_deleted]=file_deleted
     build[:line_added]=line_added
     build[:line_deleted]=line_deleted
-    
+    build[:insert_time]=today.strftime("%Y-%m-%d %H:%M:%S")
     acc={:test_file=>test_num,:src_file=>src_num ,:txt_file=>txt_num,:config_file =>config_num,:src_churn=>src_churn,:test_churn=>test_churn}
     build=build.merge(acc)
     c=All_repo_data_virtual_prior_merge.new(build)
     c.save
     ActiveRecord::Base.clear_active_connections!
+    rescue => exception
+      
+    end
+    
   elsif flag!=0
     Filemodif_info.where("last_build_commit=? and now_build_commit=? and father_id=?",build.last_build_commit,build.now_build_commit,build.father_id).find_each do |info|
           info.tests_added=test_added

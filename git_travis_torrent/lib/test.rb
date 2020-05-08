@@ -7,7 +7,7 @@ require File.expand_path('../travis_torrent.rb',__FILE__)
 class Test< ActiveRecord::Base
     establish_connection(   
     adapter:  "mysql2",
-    host:     "10.131.252.160",
+    host:     "10.141.221.85",
     username: "root",
     password: "root",
     database: "cll_data",  

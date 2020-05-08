@@ -1,4 +1,4 @@
-#require File.expand_path('../../lib/all_repo_data_virtual_prior_merge.rb',__FILE__)
+require File.expand_path('../../lib/all_repo_data_virtual_prior_merge.rb',__FILE__)
 require File.expand_path('../../lib/all_repo_data_virtual.rb',__FILE__)
 #require File.expand_path('../../lib/commit_info.rb',__FILE__)
 require File.expand_path('../../lib/maven_error.rb',__FILE__)
@@ -22,7 +22,7 @@ $error_info=["failed","errored"]
 # puts MAVEN_ERROR_FLAG =~ file_arry[0]
 
 module MavenCompilation
-  @thread_num=100
+  @thread_num=80
  
   def self.test_maven_slice(file_array)
     failed_tests = []
@@ -101,7 +101,8 @@ end
         file_array=[]
       end
     ensure
-      if file_array.size<2#null的情况
+      if file_array.nil?#null的情况
+       
         DownloadJobs.job_logs(log_hash[:log_path],log_hash[:job_id])
       
         if File.exists?(log_hash[:log_path]) and File.size(log_hash[:log_path]) > 5
@@ -113,7 +114,7 @@ end
       end
       
     end
-    if file_array.size > 2
+    if !file_array.nil? and file_array.size > 2
       file_array.collect! do |line|
         begin
           sub = line.gsub(/\r\n?/, "\n")  
@@ -161,15 +162,13 @@ end
     
     
 
-
+      
       
       end
-    
-      #hash[:gradle_slice] = gslice.length > 0 ? gslice : nil
-      # Maven_error.with_connection.do |conn|
-      #     conn.new(log_hash)
-      #     conn.save
-      # end
+      today = Time.new; 
+
+      
+      log_hash[:insert_time]=today.strftime("%Y-%m-%d %H:%M:%S")
       c=Maven_error.new(log_hash)
       c.save  
     else
@@ -190,7 +189,7 @@ end
           
           hash = @inqueue.deq
           break if hash == :END_OF_WORK
-          if Maven_error.where("job_id=? and repo_name=?",hash[:job_id],hash[:repo_name]).count>0
+          if Maven_error.where("job_id=? and repo_name=?  ",hash[:job_id],hash[:repo_name]).count>0#已经存进数据库了就跳过
             #puts "next#{hash[:job_id]}"
             next
           else
@@ -212,27 +211,44 @@ end
     
     threads=init_save_maven_errors
     puts "save_maven_errors"
+    repo_build_id=[]
+    maven_build_id=[]
+    left_id=[]
     All_repo_data_virtual.where("repo_name=? and status in ('errored','failed')","#{user}@#{repo}").find_all do |info|
-      i=0
-     #puts "save error #{info.id}" 
-    for job in info.jobs_state
-      if $error_info.include? job
-      hash = Hash.new
-      log_path = File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', info.repo_name, info.jobs_arry[i].sub(/\./, '@')+'.log'), File.dirname(__FILE__))
-   
-      hash[:repo_name]=info.repo_name
-      hash[:job_number]=info.jobs_arry[i]
-      hash[:job_id]=info.jobs[i] 
-      hash[:job_state]=job
-      
-      hash[:log_path]=log_path
-      hash[:all_repo_data_virtual_id]=info.id
-      hash[:build_id]=info.build_id
-      hash[:log_path]=log_path
-      @inqueue.enq hash
-      end
-      i=i+1
+      repo_build_id<<info.build_id
     end
+    Maven_error.where("repo_name=?","#{user}@#{repo}").group("build_id").find_each do |info|
+      maven_build_id << info.build_id
+    end
+    left_id=repo_build_id-maven_build_id
+    for item in left_id 
+      
+      All_repo_data_virtual.where("build_id=?",item).find_all do |info|
+        i=0
+     #puts "save error #{info.id}" 
+        for job in info.jobs_state
+          if $error_info.include? job
+            hash = Hash.new
+            dir_path=File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', info.repo_name), File.dirname(__FILE__))
+            if !File.directory?(dir_path)
+              FileUtils::mkdir_p(dir_path)
+            end
+            log_path = File.expand_path(File.join(dir_path, info.jobs_arry[i].sub(/\./, '@')+'.log'), File.dirname(__FILE__))
+        
+            hash[:repo_name]=info.repo_name
+            hash[:job_number]=info.jobs_arry[i]
+            hash[:job_id]=info.jobs[i] 
+            hash[:job_state]=job
+            
+            hash[:log_path]=log_path
+            hash[:all_repo_data_virtual_id]=info.id
+            hash[:build_id]=info.build_id
+            hash[:log_path]=log_path
+            @inqueue.enq hash
+          end
+          i=i+1
+        end
+      end
     end
     @thread_num.times do
       @inqueue.enq :END_OF_WORK
@@ -242,6 +258,88 @@ end
     puts "Maven_errorUpdate Over"
     
   end
+
+
+
+  def self.dependency_error(user,repo)
+    Thread.abort_on_exception = true
+    threads=init_dependency_errors
+    puts "save_dependency_error"
+    Maven_error.where("repo_name=? and other_error=1","#{user}@#{repo}").find_all do |item|
+      @inqueue.enq item
+    end
+    @thread_num.times do
+      @inqueue.enq :END_OF_WORK
+    end
+    threads.each {|t| t.join}
+    ActiveRecord::Base.clear_active_connections!
+    puts "Maven_denpendency Over"
+  end
+  def self.init_dependency_errors
+    @inqueue = SizedQueue.new(@thread_num)
+    threads=[]
+    @thread_num.times do 
+      thread = Thread.new do
+        loop do
+          
+          info = @inqueue.deq
+          break if info == :END_OF_WORK
+          begin
+            file_array = IO.readlines(info.log_path)
+            rescue#不存在file
+              puts "begin"
+              DownloadJobs.job_logs(info.log_path,info.job_id)
+              
+              if File.exists?(info.log_path) and File.size(info.log_path) > 5
+                file_array = IO.readlines(info.log_path)
+              else
+                puts "can not download"
+                file_array=[]
+              end
+            ensure
+              if file_array.nil?#null的情况
+               
+                DownloadJobs.job_logs(info.log_path,info.job_id)
+              
+                if File.exists?(info.log_path) and File.size(info.log_path) > 5
+                  file_array = IO.readlines(info.log_path)
+                else
+                  puts "can not download"
+                  file_array=[]
+                end
+              end
+              
+            end
+            if !file_array.nil? and file_array.size > 2
+              file_array.collect! do |line|
+                begin
+                  sub = line.gsub(/\r\n?/, "\n")  
+                rescue
+                  sub = line.encode('ISO-8859-1', 'ISO-8859-1').gsub(/\r\n?/, "\n")
+                end
+                sub
+              end
+              file_array.each do |line|
+                # 
+                if !line.match(/[dD]ependenc?/).nil?
+                  puts "====="
+                  info.dependency=1
+                  info.save
+                  break
+              end
+            end
+          end
+          
+          
+        end
+        end
+        threads << thread
+      end
+
+    threads
+  end
+
+
 
   def self.maven_warning_slice(file_array)
     array = []
@@ -273,16 +371,55 @@ end
 
 user=ARGV[0]
 repo=ARGV[1]
-
-#save_maven_errors(user,repo)
-#fix_maven_errors(user,repo)
-
-# log_path = File.expand_path(File.join('..', '..', '..', 'bodyLog2', 'build_logs', 'google@guava', '1@3.log'), File.dirname(__FILE__))
-# hash=Hash.new  
-      
-#     hash[:job_id]=40108475
+# All_repo_data_virtual.find_by_sql ("SELECT build_id FROM cll_data.all_repo_data_virtual_prior_merges WHERE id=?",23317).find_each do |item|
+#   p item.build_id
+# end
+# log_path="/home/fdse/user/zc/bodyLog2/build_logs/structr@structr/96@1.log"
+# job_id='4526561'
+# begin
+#   file_array = IO.readlines()
+#   rescue#不存在file
+#     puts "begin"
+#     DownloadJobs.job_logs(log_path,job_id)
     
-#     hash[:log_path]=log_path
-#     compiler_error_message_slice(hash)
+#     if File.exists?(log_path) and File.size(log_path) > 5
+#       file_array = IO.readlines(log_path)
+#     else
+#       puts "can not download"
+#       file_array=[]
+#     end
+#   ensure
+#     if file_array.nil?#null的情况
+     
+#       DownloadJobs.job_logs(log_path,job_id)
+    
+#       if File.exists?(info.log_path) and File.size(info.log_path) > 5
+#         file_array = IO.readlines(info.log_path)
+#       else
+#         puts "can not download"
+#         file_array=[]
+#       end
+#     end
+    
+#   end
+#   if !file_array.nil? and file_array.size > 2
+#     file_array.collect! do |line|
+#       begin
+#         sub = line.gsub(/\r\n?/, "\n")  
+#       rescue
+#         sub = line.encode('ISO-8859-1', 'ISO-8859-1').gsub(/\r\n?/, "\n")
+#       end
+#       sub
+#     end
+#     file_array.each do |line|
+#       # 
+#       if !line.match(/[dD]ependenc?/).nil?
+#         puts "====="
+#         info.dependency=1
+#         info.save
+#         break
+#     end
+#   end
+# end
 
   

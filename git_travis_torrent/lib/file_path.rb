@@ -10,7 +10,7 @@ class File_path < ActiveRecord::Base
     database: "cll_data",  
     encoding: "utf8mb4",
     collation: "utf8mb4_bin",
-    pool: 200
+    pool: 500
 )
 serialize :filpath, Array
 serialize :src_path, Array

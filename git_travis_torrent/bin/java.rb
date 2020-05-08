@@ -8,7 +8,12 @@ module JavaData
       path.end_with?('.java')and not test_file_filter.call(f)
     }
   end
-
+  def JavaData.code_file_filter
+    lambda { |f|
+      path = if f.class == Hash then f[:path] else f end
+      path.end_with?('.java')
+    }
+  end
   def JavaData.test_file_filter
     lambda { |f|
       path = if f.class == Hash then f[:path] else f end
